@@ -1,0 +1,398 @@
+{
+    "sheetname": "LTRC",
+    "style": "Skyline (Nightfall).qss",
+    "width": 1769,
+    "height": 988,
+    "font_file": "Knewave-Regular.ttf",
+    "base_font_size": 20,
+    "background_color": "#460064",
+    "background_image": "background.png",
+    "rank_icons_dir": "rank_icons",
+    "shadow": {
+        "color": [0, 0, 0, 180],
+        "blur_radius": 15
+    },
+    
+    "colors": {
+        "gold": "#FFD700",
+        "silver": "#C0C0C0",
+        "bronze": "#CD7F32",
+        "mmr_up": "#00FF80",
+        "mmr_down": "#FF6464",
+        "icon": "#FFFFFF",
+        "positions": {
+            "1": "#FFD700",
+            "2": "#C0C0C0",
+            "3": "#CD7F32",
+            "default": "#FFFFFF"
+        }
+    },
+    
+    "formats": {
+        "FFA": {
+            "team_size": 1,
+            "podium_count": 3,
+            "header": {
+                "title_y": 0,
+                "title_size": 75,
+                "title_color": "#FF8000",
+                "subtitle_y": 100,
+                "subtitle_size": 30,
+                "subtitle_color": "#FFFFFF",
+                "shadow_offset": [4, 4]
+            },
+            "podium_style": {
+                "start_x": 400,
+                "start_y": 200,
+                "medal_width": 20,
+                "medal_height": 60,
+                "position_x": 40,
+                "position_offset_x": 10,
+                "position_offset_y": -20,
+                "position_size": 65,
+                "name_size": 40,
+                "name_color": "#FFFFFF",
+                "stats_size": 30,
+                "rank_change_icon_size": [15, 15],
+                "icon_y_offset": 15,
+                "row_spacing": 40,
+                "winner": {
+                    "y_offset": -30,
+                    "font_size": 65,
+                    "spacing": 80
+                },
+                "mii": {
+                    "size": 200,
+                    "x_offset": 240,
+                    "y_offset": -40,
+                    "horizontal_spacing": 20,
+                    "bottom_spacing": -30
+                },
+                "vertical_spacing": 20,
+                "section_spacing": 50,
+                "horizontal_spacing": 15,
+                "center_x": 340,
+                "position_sizes": [70, 60, 55],
+                "name_sizes": [70, 65, 60],
+                "stats_sizes": [45, 40, 35]
+            },
+            "regular_style": {
+                "start_x": 1100,
+                "start_y": 200,
+                "name_size": 60,
+                "name_color": "#FFFFFF",
+                "stats_size": 35,
+                "row_spacing": 25,
+                "horizontal_spacing": 15,
+                "vertical_spacing": 20,
+                "column_y_offset": 80,
+                "column_spacing": 400
+            }
+        },
+        
+        "2vs2": {
+            "team_size": 2,
+            "podium_count": 2,
+            "header": {
+                "title_y": 0,
+                "title_size": 75,
+                "title_color": "#FF8000",
+                "subtitle_y": 100,
+                "subtitle_size": 30,
+                "subtitle_color": "#FFFFFF",
+                "shadow_offset": [4, 4]
+            },
+            "podium_style": {
+                "start_x": 400,
+                "start_y": 200,
+                "medal_width": 20,
+                "medal_height": 60,
+                "position_x": 40,
+                "position_offset_x": 10,
+                "position_offset_y": -20,
+                "position_size": 65,
+                "name_size": 40,
+                "name_color": "#FFFFFF",
+                "stats_size": 30,
+                "rank_change_icon_size": [15, 15],
+                "icon_y_offset": 15,
+                "row_spacing": 40,
+                "winner": {
+                    "y_offset": -30,
+                    "font_size": 65,
+                    "spacing": 80
+                },
+                "mii": {
+                    "size": 160,
+                    "x_offset": 240,
+                    "y_offset": -40,
+                    "horizontal_spacing": 30,
+                    "bottom_spacing": -30
+                },
+                "vertical_spacing": 20,
+                "section_spacing": 50,
+                "horizontal_spacing": 15,
+                "center_x": 340,
+                "position_sizes": [70, 60],
+                "name_sizes": [60, 50],
+                "stats_sizes": [45, 35]
+            },
+            "regular_style": {
+                "start_x": 1000,
+                "start_y": 200,
+                "name_size": 50,
+                "name_color": "#FFFFFF",
+                "stats_size": 35,
+                "row_spacing": 75,
+                "horizontal_spacing": 15,
+                "vertical_spacing": 20,
+                "column_y_offset": 80,
+                "column_spacing": 400
+            }
+        },
+        
+        "3vs3": {
+            "team_size": 3,
+            "podium_count": 1,
+            "header": {
+                "title_y": 0,
+                "title_size": 75,
+                "title_color": "#FF8000",
+                "subtitle_y": 100,
+                "subtitle_size": 30,
+                "subtitle_color": "#FFFFFF",
+                "shadow_offset": [4, 4]
+            },
+            "podium_style": {
+                "start_x": 400,
+                "start_y": 200,
+                "medal_width": 20,
+                "medal_height": 60,
+                "position_x": 40,
+                "position_offset_x": 10,
+                "position_offset_y": -20,
+                "position_size": 65,
+                "name_size": 35,
+                "name_color": "#FFFFFF",
+                "stats_size": 25,
+                "rank_change_icon_size": [15, 15],
+                "icon_y_offset": 15,
+                "row_spacing": 40,
+                "winner": {
+                    "y_offset": -30,
+                    "font_size": 60,
+                    "spacing": 80
+                },
+                "mii": {
+                    "size": 200,
+                    "x_offset": 240,
+                    "y_offset": -40,
+                    "horizontal_spacing": 30,
+                    "bottom_spacing": -30
+                },
+                "vertical_spacing": 20,
+                "section_spacing": 50,
+                "horizontal_spacing": 15,
+                "center_x": 340,
+                "position_sizes": [70],
+                "name_sizes": [70],
+                "stats_sizes": [60]
+            },
+            "regular_style": {
+                "start_x": 1100,
+                "start_y": 200,
+                "name_size": 50,
+                "name_color": "#FFFFFF",
+                "stats_size": 30,
+                "row_spacing": 50,
+                "horizontal_spacing": 15,
+                "vertical_spacing": 20,
+                "column_y_offset": 200,
+                "column_spacing": 400
+            }
+        },
+        
+        "4vs4": {
+            "team_size": 4,
+            "podium_count": 1,
+            "header": {
+                "title_y": 0,
+                "title_size": 75,
+                "title_color": "#FF8000",
+                "subtitle_y": 100,
+                "subtitle_size": 30,
+                "subtitle_color": "#FFFFFF",
+                "shadow_offset": [4, 4]
+            },
+            "podium_style": {
+                "start_x": 400,
+                "start_y": 200,
+                "medal_width": 20,
+                "medal_height": 60,
+                "position_x": 40,
+                "position_offset_x": 10,
+                "position_offset_y": -20,
+                "position_size": 65,
+                "name_size": 32,
+                "name_color": "#FFFFFF",
+                "stats_size": 22,
+                "rank_change_icon_size": [15, 15],
+                "icon_y_offset": 15,
+                "row_spacing": 40,
+                "winner": {
+                    "y_offset": -30,
+                    "font_size": 55,
+                    "spacing": 80
+                },
+                "mii": {
+                    "size": 150,
+                    "x_offset": 240,
+                    "y_offset": -40,
+                    "horizontal_spacing": 20,
+                    "bottom_spacing": -30
+                },
+                "vertical_spacing": 20,
+                "section_spacing": 50,
+                "horizontal_spacing": 15,
+                "center_x": 340,
+                "position_sizes": [65],
+                "name_sizes": [60],
+                "stats_sizes": [50]
+            },
+            "regular_style": {
+                "start_x": 1100,
+                "start_y": 200,
+                "name_size": 50,
+                "name_color": "#FFFFFF",
+                "stats_size": 28,
+                "row_spacing": 50,
+                "horizontal_spacing": 15,
+                "vertical_spacing": 20,
+                "column_y_offset": 160,
+                "column_spacing": 400
+            }
+        },
+        
+        "5vs5": {
+            "team_size": 5,
+            "podium_count": 1,
+            "header": {
+                "title_y": 0,
+                "title_size": 75,
+                "title_color": "#FF8000",
+                "subtitle_y": 100,
+                "subtitle_size": 30,
+                "subtitle_color": "#FFFFFF",
+                "shadow_offset": [4, 4]
+            },
+            "podium_style": {
+                "start_x": 400,
+                "start_y": 125,
+                "medal_width": 20,
+                "medal_height": 60,
+                "position_x": 40,
+                "position_offset_x": 10,
+                "position_offset_y": -20,
+                "position_size": 65,
+                "name_size": 28,
+                "name_color": "#FFFFFF",
+                "stats_size": 18,
+                "rank_change_icon_size": [15, 15],
+                "icon_y_offset": 15,
+                "row_spacing": 40,
+                "winner": {
+                    "y_offset": -30,
+                    "font_size": 45,
+                    "spacing": 80
+                },
+                "mii": {
+                    "size": 130,
+                    "x_offset": 340,
+                    "y_offset": -20,
+                    "horizontal_spacing": 0,
+                    "bottom_spacing": -30
+                },
+                "vertical_spacing": 20,
+                "section_spacing": 50,
+                "horizontal_spacing": 15,
+                "center_x": 340,
+                "position_sizes": [55],
+                "name_sizes": [50],
+                "stats_sizes": [40]
+            },
+            "regular_style": {
+                "start_x": 1350,
+                "start_y": 175,
+                "name_size": 50,
+                "name_color": "#FFFFFF",
+                "stats_size": 40,
+                "row_spacing": 50,
+                "horizontal_spacing": 15,
+                "vertical_spacing": 20,
+                "column_y_offset": 80,
+                "column_spacing": 400
+            }
+        },
+        
+        "6vs6": {
+            "team_size": 6,
+            "podium_count": 1,
+            "header": {
+                "title_y": 0,
+                "title_size": 75,
+                "title_color": "#FF8000",
+                "subtitle_y": 100,
+                "subtitle_size": 30,
+                "subtitle_color": "#FFFFFF",
+                "shadow_offset": [4, 4]
+            },
+            "podium_style": {
+                "start_x": 400,
+                "start_y": 125,
+                "medal_width": 20,
+                "medal_height": 60,
+                "position_x": 40,
+                "position_offset_x": 10,
+                "position_offset_y": -20,
+                "position_size": 65,
+                "name_size": 28,
+                "name_color": "#FFFFFF",
+                "stats_size": 18,
+                "rank_change_icon_size": [15, 15],
+                "icon_y_offset": 15,
+                "row_spacing": 40,
+                "winner": {
+                    "y_offset": -30,
+                    "font_size": 45,
+                    "spacing": 80
+                },
+                "mii": {
+                    "size": 130,
+                    "x_offset": 340,
+                    "y_offset": -20,
+                    "horizontal_spacing": 0,
+                    "bottom_spacing": -30
+                },
+                "vertical_spacing": 20,
+                "section_spacing": 50,
+                "horizontal_spacing": 15,
+                "center_x": 340,
+                "position_sizes": [55],
+                "name_sizes": [50],
+                "stats_sizes": [40]
+            },
+            "regular_style": {
+                "start_x": 1350,
+                "start_y": 175,
+                "name_size": 50,
+                "name_color": "#FFFFFF",
+                "stats_size": 40,
+                "row_spacing": 50,
+                "horizontal_spacing": 15,
+                "vertical_spacing": 20,
+                "column_y_offset": 80,
+                "column_spacing": 400
+            }
+        }
+    }
+}

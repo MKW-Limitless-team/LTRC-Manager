@@ -1,0 +1,52 @@
+{
+  "event_id" : "LTRC_S4E69",
+  "mode": "4vs4",
+  "players": [
+    {
+      "name": "Blazico",
+      "score": 120,
+      "mii_data": "AAYiHgBCAGwAYQB6AGkAYwBvIh4AAEFAiRgSycIKnXVMAG5BIb0oojyMSEgUSbhucIoAiiUFAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    },
+    {
+      "name": "Gaberboo",
+      "score": 110,
+      "mii_data": "AAYiHgBCAGwAYQB6AGkAYwBvIh4AAEFAiRgSycIKnXVMAG5BIb0oojyMSEgUSbhucIoAiiUFAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    },
+    {
+      "name": "Ross",
+      "score": 110,
+      "mii_data": "AAYiHgBCAGwAYQB6AGkAYwBvIh4AAEFAiRgSycIKnXVMAG5BIb0oojyMSEgUSbhucIoAiiUFAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    },
+    {
+      "name": "Turts-Potato",
+      "score": 110,
+      "mii_data": "AAYiHgBCAGwAYQB6AGkAYwBvIh4AAEFAiRgSycIKnXVMAG5BIb0oojyMSEgUSbhucIoAiiUFAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    },
+    {
+      "name": "Police",
+      "score": 110,
+      "mii_data": "AAYiHgBCAGwAYQB6AGkAYwBvIh4AAEFAiRgSycIKnXVMAG5BIb0oojyMSEgUSbhucIoAiiUFAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    },
+    {
+      "name": "KogMawMain",
+      "score": 100,
+      "mii_data": "AAYiHgBCAGwAYQB6AGkAYwBvIh4AAEFAiRgSycIKnXVMAG5BIb0oojyMSEgUSbhucIoAiiUFAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    },
+    {
+      "name": "TurboWissl",
+      "score": 90,
+      "mii_data": "AAYiHgBCAGwAYQB6AGkAYwBvIh4AAEFAiRgSycIKnXVMAG5BIb0oojyMSEgUSbhucIoAiiUFAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    },
+    {
+      "name": "Fern",
+      "score": 80,
+      "mii_data": "AAYiHgBCAGwAYQB6AGkAYwBvIh4AAEFAiRgSycIKnXVMAG5BIb0oojyMSEgUSbhucIoAiiUFAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    }
+  ],
+  "options": {
+    "32track": false,
+    "200cc": false,
+    "ott": false
+  },
+  "event_date": "2-1-2025"
+}

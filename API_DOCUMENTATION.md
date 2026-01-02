@@ -156,48 +156,180 @@ Get current processing status and system information.
 
 #### Image Generation
 
-##### Generate or Retrieve Tournament Image
+##### Generate Tournament Image
 
 ```
-POST /ltrc/images/{event_id}
+POST /images/generate
 ```
 
-Generate a tournament result image if it doesn't exist, or retrieve the existing image. This endpoint handles both image generation and acquisition in a single POST request.
+Generate a professional tournament result image with player information, MMR changes, and automatic formatting.
 
-**Request Body:** None required
+**Request Body:**
+
+```json
+{
+  "format_type": "FFA",
+  "results": [
+    {
+      "name": "Player 1",
+      "score": 1000,
+      "mmr_change": 50,
+      "new_mmr": 2050,
+      "completion": "3/3",
+      "mii_data": "base64_encoded_mii_data"
+    }
+  ],
+  "event_id": "LTRC_S1E15",
+  "event_date": "25-12-2025"
+}
+```
 
 **Response:**
 Binary image data (PNG format) with appropriate content-type header (`image/png`).
 
 **Status Codes:**
-- 200: Success (image generated or retrieved)
-- 404: Event not found
+- 200: Success (image generated)
+- 400: Invalid request (invalid format type or empty results)
 - 500: Image generation failed
 
-**Notes:**
-- If the image for the specified event already exists, it will be returned directly
-- If the image doesn't exist, it will be generated on-demand and then returned
-- The response contains the actual image data, not file paths or URLs
-- Images are cached after generation to improve performance for subsequent requests
-- Image generation uses the event_date and other stored tournament data for customization
+**Features:**
+- Player names and scores
+- MMR changes with color coding (green for positive, red for negative)
+- Rank progression indicators
+- Placement completion status (1/3, 2/3, 3/3)
+- Mii images for players (if available)
+- Professional podium layout for top 3 positions
+- Multi-format support (FFA, 2vs2, 4vs4, 5v5, 6v6)
+- Automatic subtitle generation with event number and date
+
+##### Get Supported Image Formats
+
+```
+GET /images/formats
+```
+
+Get a list of supported tournament formats for image generation.
+
+**Response:**
+
+```json
+{
+  "supported_formats": ["FFA", "2vs2", "4vs4", "5v5", "6v6"],
+  "message": "Found 5 supported formats",
+  "formats": {
+    "FFA": {
+      "podium_count": 3,
+      "team_size": 1,
+      "description": "1v1 or FFA"
+    }
+  }
+}
+```
+
+**Status Codes:**
+- 200: Success
+
+##### Get Image Generation Configuration
+
+```
+GET /images/config
+```
+
+Get the current image generation configuration.
+
+**Response:**
+
+```json
+{
+  "width": 1200,
+  "height": 800,
+  "font_file": "Knewave-Regular.ttf",
+  "background_color": "#000000",
+  "colors": {
+    "positions": {
+      "1": "#FFD700",
+      "2": "#C0C0C0",
+      "3": "#CD7F32",
+      "default": "#FFFFFF"
+    },
+    "mmr_up": "#00FF00",
+    "mmr_down": "#FF0000",
+    "gold": "#FFD700"
+  },
+  "formats": ["FFA", "2vs2", "4vs4", "5v5", "6v6"],
+  "message": "Current image generation configuration"
+}
+```
+
+**Status Codes:**
+- 200: Success
+
+##### Test Image Generation
+
+```
+POST /images/test
+```
+
+Generate a test image with sample data to verify the image generation functionality.
+
+**Response:** Binary PNG image data with sample tournament results
+
+**Status Codes:**
+- 200: Success (test image generated)
+
+##### Check Image Generation Health
+
+```
+GET /images/health
+```
+
+Check the health of the image generation service.
+
+**Response:**
+
+```json
+{
+  "status": "healthy",
+  "service": "image_generation",
+  "formats_supported": 5,
+  "configuration_loaded": true,
+  "message": "Image generation service is ready"
+}
+```
+
+**Status Codes:**
+- 200: Success
+
 
 #### Google Sheets Integration
 
 ##### Update Google Sheets
 
 ```
-POST /ltrc/sheets/update
+POST /sheets/update
 ```
 
-Update Google Sheets with tournament data.
+Update Google Sheets with tournament data. Only one update can be processed at a time - if another update is in progress, returns a busy error.
 
 **Request Body:**
 
 ```json
 {
-  "event_id": "LTRC_S1E1",
-  "update_placements": true,
-  "update_playerdata": true
+  "event_id": "LTRC_S1E123",
+  "results": [
+    {
+      "name": "Player1",
+      "score": 1500,
+      "new_mmr": 4650,
+      "mmr_change": 150
+    },
+    {
+      "name": "Player2",
+      "score": 1200,
+      "new_mmr": 4150,
+      "mmr_change": -50
+    }
+  ]
 }
 ```
 
@@ -206,21 +338,28 @@ Update Google Sheets with tournament data.
 ```json
 {
   "success": true,
-  "updated_cells": 45,
-  "timestamp": "2025-01-31T14:35:00Z",
+  "updated_cells": 12,
+  "timestamp": "2025-01-31T15:30:00",
   "message": "Sheet updated successfully"
 }
 ```
 
 **Status Codes:**
 - 200: Success
-- 400: Invalid request
+- 400: Invalid request (missing event_id or results)
+- 423: Sheet is busy (another update in progress)
 - 500: Sheets update failed
+
+**Notes:**
+- `name`: Player's name (must match Google Sheets)
+- `score`: Player's tournament score
+- `new_mmr`: Player's MMR after the tournament
+- `mmr_change`: MMR change (positive or negative)
 
 ##### Check Sheets Status
 
 ```
-GET /ltrc/sheets/status
+GET /sheets/status
 ```
 
 Check Google Sheets connection and lock status.
@@ -239,7 +378,6 @@ Check Google Sheets connection and lock status.
 ```
 
 **Status Codes:**
-- 200: Success
 
 
 ## Data Formats
@@ -318,20 +456,19 @@ Check Google Sheets connection and lock status.
 
 The application implements a distributed locking mechanism to prevent concurrent access to Google Sheets:
 
-1. **Lock Cell**: Uses cell Z1 as a lock indicator
-2. **Instance ID**: Each instance generates a unique ID
-3. **Timeout**: Locks expire after 5 minutes of inactivity
-4. **Cleanup**: Locks are automatically released on instance shutdown
+1. **Single Update at a Time**: Only one sheets update can be processed simultaneously
+2. **Busy Error**: If an update is requested while another is in progress, returns HTTP 423 (Locked)
+3. **Automatic Cleanup**: Locks are released when updates complete or fail
 
 ### Lock States
 
-- **Unlocked**: No instance is currently processing
-- **Locked**: Another instance is processing
-- **Expired**: Lock exists but is older than timeout
+- **Available**: No update is currently in progress
+- **Busy**: Another update is currently being processed
+- **Error**: Previous update failed and lock needs cleanup
 
 ### Status API
 
-The `/ltrc/status` endpoint provides information about current locks and active instances.
+The `/sheets/status` endpoint provides information about current locks and active instances.
 
 ## Error Handling
 
@@ -340,6 +477,7 @@ The `/ltrc/status` endpoint provides information about current locks and active 
 #### Google Sheets Errors
 - **401 Unauthorized**: Invalid or missing credentials
 - **403 Forbidden**: Missing permissions for the sheet
+- **423 Locked**: Sheet is busy (another update in progress)
 - **429 Too Many Requests**: Rate limiting exceeded
 - **500 Internal Server Error**: Google Sheets API error
 
@@ -411,6 +549,38 @@ if response.status_code == 200:
     with open("tournament_image.png", "wb") as f:
         f.write(response.content)
     print("Image saved successfully")
+else:
+    print(f"Error: {response.status_code} - {response.text}")
+```
+
+### Sheets Update with Results
+
+```python
+# Update Google Sheets with tournament results
+sheets_data = {
+    "event_id": "LTRC_S1E123",
+    "results": [
+        {
+            "name": "Player1",
+            "score": 1500,
+            "new_mmr": 4650,
+            "mmr_change": 150
+        },
+        {
+            "name": "Player2",
+            "score": 1200,
+            "new_mmr": 4150,
+            "mmr_change": -50
+        }
+    ]
+}
+
+response = requests.post("http://localhost:8000/sheets/update", json=sheets_data)
+
+if response.status_code == 200:
+    print("Sheets updated successfully")
+elif response.status_code == 423:
+    print("Sheets are busy - another update in progress")
 else:
     print(f"Error: {response.status_code} - {response.text}")
 ```
