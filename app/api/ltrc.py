@@ -1,7 +1,8 @@
+import json
+import os
 from fastapi import APIRouter, HTTPException
 from datetime import datetime
 from typing import Dict, Any
-
 from app.models.ltrc import (
     TournamentRequest, TournamentResponse, TournamentResultsResponse,
     SheetsUpdateRequest, SheetsUpdateResponse
@@ -57,8 +58,6 @@ async def process_tournament(request: TournamentRequest):
             mode=result["mode"],
             processed_at=result["processed_at"],
             results=result["results"],
-            image_generated=result.get("image_generated", False),
-            image_url=result.get("image_url", None),
             event_date=result.get("event_date", request.event_date)
         )
         
@@ -66,10 +65,19 @@ async def process_tournament(request: TournamentRequest):
             "request": request.dict(),
             "response": response.dict()
         }
+
+        # Save results as JSON in database directory
+        output_dir = "database"
+        os.makedirs(output_dir, exist_ok=True)
+        json_filename = f"{request.event_id}_results.json"
+        json_path = os.path.join(output_dir, json_filename)
         
-        logger.info(f"Tournament processed successfully: {request.event_id}")
+        with open(json_path, 'w') as json_file:
+            json.dump(response.dict(), json_file, indent=4)
+
+        logger.info(f"Tournament processed successfully: {request.event_id}. Results saved to {json_path}")
         return response
-        
+
     except ValueError as e:
         logger.error(f"Validation error processing tournament: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
@@ -90,15 +98,22 @@ async def get_tournament_results(event_id: str):
     try:
         logger.info(f"Retrieving results for event: {event_id}")
         
-        if event_id not in tournament_storage:
-            logger.warning(f"Event not found: {event_id}")
-            raise HTTPException(status_code=404, detail="Event not found")
+        # Check if results exist in database directory
+        json_path = os.path.join("database", f"{event_id}_results.json")
+        if not os.path.exists(json_path):
+            logger.warning(f"Results not found for event: {event_id}")
+            raise HTTPException(status_code=404, detail=f"Results not found for event ID: {event_id}")
         
-        response_data = tournament_storage[event_id]["response"]
-        return TournamentResultsResponse(**response_data)
+        # Load from JSON file
+        with open(json_path, 'r') as json_file:
+            response_data = json.load(json_file)
+            return TournamentResultsResponse(**response_data)
         
     except HTTPException:
         raise
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in results file for event {event_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Corrupt results data")
     except Exception as e:
         logger.error(f"Error retrieving tournament results: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error retrieving results: {str(e)}")

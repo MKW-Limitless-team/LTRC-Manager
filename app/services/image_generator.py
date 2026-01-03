@@ -61,7 +61,7 @@ class ImageGenerator:
         self.rank_icons_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'assets', 'rank_icons')
         
         # Path to results images folder
-        self.results_images_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'results_images')
+        self.results_images_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'database')
         os.makedirs(self.results_images_dir, exist_ok=True)
         
         # Create a session for HTTP requests that can be reused
