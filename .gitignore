@@ -3,3 +3,5 @@ __pycache__
 build
 main.spec
 venv
+database
+ltrc_manager.log
