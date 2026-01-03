@@ -1,0 +1,79 @@
+{
+    "event_id": "LTRC_S4E69",
+    "mode": "4vs4",
+    "processed_at": "2026-01-03T16:02:12.065440",
+    "results": [
+        {
+            "name": "Blazico",
+            "score": 120,
+            "old_mmr": 2712,
+            "new_mmr": 2768,
+            "mmr_change": 56,
+            "completion": "",
+            "mii_data": "AAYiHgBCAGwAYQB6AGkAYwBvIh4AAEFAiRgSycIKnXVMAG5BIb0oojyMSEgUSbhucIoAiiUFAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        {
+            "name": "Gaberboo",
+            "score": 110,
+            "old_mmr": 9466,
+            "new_mmr": 9522,
+            "mmr_change": 56,
+            "completion": "",
+            "mii_data": "AAYiHgBCAGwAYQB6AGkAYwBvIh4AAEFAiRgSycIKnXVMAG5BIb0oojyMSEgUSbhucIoAiiUFAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        {
+            "name": "Ross",
+            "score": 110,
+            "old_mmr": 7830,
+            "new_mmr": 7886,
+            "mmr_change": 56,
+            "completion": "",
+            "mii_data": "AAYiHgBCAGwAYQB6AGkAYwBvIh4AAEFAiRgSycIKnXVMAG5BIb0oojyMSEgUSbhucIoAiiUFAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        {
+            "name": "Turts-Potato",
+            "score": 110,
+            "old_mmr": 5373,
+            "new_mmr": 5429,
+            "mmr_change": 56,
+            "completion": "",
+            "mii_data": "AAYiHgBCAGwAYQB6AGkAYwBvIh4AAEFAiRgSycIKnXVMAG5BIb0oojyMSEgUSbhucIoAiiUFAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        {
+            "name": "Police",
+            "score": 110,
+            "old_mmr": -1,
+            "new_mmr": 5678,
+            "mmr_change": 61,
+            "completion": "3/3",
+            "mii_data": "AAYiHgBCAGwAYQB6AGkAYwBvIh4AAEFAiRgSycIKnXVMAG5BIb0oojyMSEgUSbhucIoAiiUFAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        {
+            "name": "KogMawMain",
+            "score": 100,
+            "old_mmr": 6338,
+            "new_mmr": 6399,
+            "mmr_change": 61,
+            "completion": "",
+            "mii_data": "AAYiHgBCAGwAYQB6AGkAYwBvIh4AAEFAiRgSycIKnXVMAG5BIb0oojyMSEgUSbhucIoAiiUFAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        {
+            "name": "TurboWissl",
+            "score": 90,
+            "old_mmr": 5493,
+            "new_mmr": 5554,
+            "mmr_change": 61,
+            "completion": "",
+            "mii_data": "AAYiHgBCAGwAYQB6AGkAYwBvIh4AAEFAiRgSycIKnXVMAG5BIb0oojyMSEgUSbhucIoAiiUFAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        {
+            "name": "Fern",
+            "score": 80,
+            "old_mmr": 6012,
+            "new_mmr": 6073,
+            "mmr_change": 61,
+            "completion": "",
+            "mii_data": "AAYiHgBCAGwAYQB6AGkAYwBvIh4AAEFAiRgSycIKnXVMAG5BIb0oojyMSEgUSbhucIoAiiUFAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        }
+    ]
+}

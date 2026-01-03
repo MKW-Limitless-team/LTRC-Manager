@@ -69,11 +69,15 @@ async def process_tournament(request: TournamentRequest):
         # Save results as JSON in database directory
         output_dir = "database"
         os.makedirs(output_dir, exist_ok=True)
-        json_filename = f"{request.event_id}_results.json"
+        json_filename = f"{request.event_id}.json"
         json_path = os.path.join(output_dir, json_filename)
         
         with open(json_path, 'w') as json_file:
-            json.dump(response.dict(), json_file, indent=4)
+            # First get JSON string from Pydantic model
+            json_data = response.json()
+            # Parse and re-dump with indentation
+            parsed = json.loads(json_data)
+            json.dump(parsed, json_file, indent=4)
 
         logger.info(f"Tournament processed successfully: {request.event_id}. Results saved to {json_path}")
         return response
@@ -99,7 +103,7 @@ async def get_tournament_results(event_id: str):
         logger.info(f"Retrieving results for event: {event_id}")
         
         # Check if results exist in database directory
-        json_path = os.path.join("database", f"{event_id}_results.json")
+        json_path = os.path.join("database", f"{event_id}.json")
         if not os.path.exists(json_path):
             logger.warning(f"Results not found for event: {event_id}")
             raise HTTPException(status_code=404, detail=f"Results not found for event ID: {event_id}")
