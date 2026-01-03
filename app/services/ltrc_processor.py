@@ -264,7 +264,6 @@ class LTRCProcessor:
                 "mode": mode,
                 "processed_at": datetime.now(),
                 "results": results,
-                "image_generated": False,
                 "event_date": event_date
             }
             

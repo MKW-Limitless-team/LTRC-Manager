@@ -15,16 +15,6 @@ class PlayerData(BaseModel):
     score: int = Field(..., description="Player's score in the tournament")
     mii_data: str = Field(..., description="Base64-encoded Mii image data")
 
-    @field_validator('score')
-    @classmethod
-    def validate_score(cls, v):
-        """Validate that score is within LTRC limits"""
-        # Scores can be negative, but have maximum limits based on mode
-        # Normal events: max 180 points
-        # 32-track events: max 480 points (180 * 2.67)
-        # We'll validate the specific limits in the service layer based on mode
-        return v
-
 
 class TournamentOptions(BaseModel):
     """Tournament options model"""
@@ -44,20 +34,6 @@ class TournamentRequest(BaseModel):
     event_date: str = Field(..., description="Date when the event was held (DD-MM-YYYY format)",
                           pattern=r"^\d{1,2}-\d{1,2}-\d{4}$")
 
-    @field_validator('players')
-    @classmethod
-    def validate_players(cls, v, info):
-        """Validate players based on tournament mode"""
-        # Get the mode from the field name context
-        # For now, we'll validate the player count without mode-specific validation
-        # This will be handled in the service layer
-        
-        # Basic validation - ensure we have at least one player
-        if len(v) < 1:
-            raise ValueError('At least one player is required')
-        
-        return v
-
 class TournamentResult(BaseModel):
     """Tournament result model"""
     name: str = Field(..., description="Player's name")
@@ -75,7 +51,6 @@ class TournamentResponse(BaseModel):
     mode: str = Field(..., description="Tournament format")
     processed_at: datetime = Field(..., description="Timestamp when processing was completed")
     results: List[TournamentResult] = Field(..., description="List of tournament results")
-    image_generated: bool = Field(..., description="Whether an image was generated")
 
 
 class TournamentResultsResponse(BaseModel):
@@ -84,7 +59,6 @@ class TournamentResultsResponse(BaseModel):
     mode: str = Field(..., description="Tournament format")
     processed_at: datetime = Field(..., description="Timestamp when processing was completed")
     results: List[TournamentResult] = Field(..., description="List of tournament results")
-    image_generated: bool = Field(..., description="Whether an image was generated")
 
 
 class SheetsUpdateRequest(BaseModel):
