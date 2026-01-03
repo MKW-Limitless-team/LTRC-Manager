@@ -33,47 +33,57 @@ def get_image_generator():
         image_generator = ImageGenerator('FFA', config)
     return image_generator
 
-@router.post("/generate", response_class=StreamingResponse, summary="Generate tournament result image")
+@router.get("/generate/{event_id}", response_class=StreamingResponse, summary="Generate tournament result image")
 async def generate_image(
-    request: ImageGenerationRequest,
+    event_id: str,
     image_gen: ImageGenerator = Depends(get_image_generator)
 ):
     """
-    Generate or retrieve a tournament result image with player information, MMR changes, and automatic formatting.
-    First tries to retrieve an existing image, otherwise generates and saves a new one.
+    Generate or retrieve tournament result image from saved results.
+    Requires existing results file in database directory.
     
-    This endpoint creates a professional tournament result image with:
-    - Player names and scores
-    - MMR changes with color coding (green for positive, red for negative)
-    - Rank progression indicators
-    - Placement completion status (1/3, 2/3, 3/3)
-    - Mii images for players (if available)
-    - Professional podium layout for top 3 positions
-    - Multi-format support (FFA, 2vs2, 4vs4, 5v5, 6v6)
-    - Automatic subtitle generation with event number and date
-    - Persistent storage in results_images folder organized by season
+    Steps:
+    1. Check if results exist for event_id
+    2. Load saved tournament results
+    3. Generate/retrieve image using ImageGenerator
+    4. Return existing image or newly generated image
+    
+    Returns 404 if results not found
     """
     try:
-        logger.info(f"Generating/retrieving image for format: {request.format_type}, results: {len(request.results)} players, event: {request.event_id}")
+        # Check if results exist with season folder structure
+        season = event_id.split('E')[0]
+        json_path = os.path.join("database", season, f"{event_id}.json")
+        if not os.path.exists(json_path):
+            raise HTTPException(status_code=404, detail=f"Results not found for event {event_id}")
         
-        if request.format_type not in image_gen.format_config['formats']:
-            raise HTTPException(status_code=400, detail=f"Invalid format type: {request.format_type}")
+        # Load results data
+        with open(json_path, 'r') as f:
+            results_data = json.load(f)
         
-        if not request.results:
-            raise HTTPException(status_code=400, detail="Results list cannot be empty")
+        # Safely extract required fields with defaults
+        format_type = results_data.get("mode")
+        event_date = results_data.get("event_date", "")  # Default to empty string
+        players = results_data.get("results", [])
+
+        # Validate required fields exist
+        if not format_type:
+            raise HTTPException(status_code=500, detail="Missing tournament mode in results")
+        if not players:
+            raise HTTPException(status_code=500, detail="No player results found")
         
-        # Use the new generate_or_retrieve method that handles storage and retrieval
+        # Generate image using loaded data
         img = image_gen.generate_or_retrieve(
             results=[{
-                "name": player.name,
-                "score": player.score,
-                "mmr_change": player.mmr_change,
-                "new_mmr": player.new_mmr,
-                "completion": player.completion,
-                "mii_data": player.mii_data
-            } for player in request.results],
-            event_id=request.event_id,
-            event_date=request.event_date
+                "name": player["name"],
+                "score": player["score"],
+                "mmr_change": player["mmr_change"],
+                "new_mmr": player["new_mmr"],
+                "completion": player["completion"],
+                "mii_data": player.get("mii_data", "")
+            } for player in players],
+            event_id=event_id,
+            event_date=event_date
         )
         
         img_buffer = io.BytesIO()
@@ -82,12 +92,12 @@ async def generate_image(
         img_bytes = img_buffer.getvalue()
         
         return StreamingResponse(
-            io.BytesIO(img_bytes),
+            img_buffer,
             media_type="image/png",
             headers={
-                "Content-Disposition": f"attachment; filename=tournament_results_{request.format_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
+                "Content-Disposition": f"attachment; filename={event_id}.png",
                 "X-Image-Format": "PNG",
-                "X-Image-Size": str(len(img_bytes))
+                "X-Image-Size": str(img_buffer.getbuffer().nbytes)
             }
         )
         

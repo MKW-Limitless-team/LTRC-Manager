@@ -51,14 +51,9 @@ class TournamentResponse(BaseModel):
     mode: str = Field(..., description="Tournament format")
     processed_at: datetime = Field(..., description="Timestamp when processing was completed")
     results: List[TournamentResult] = Field(..., description="List of tournament results")
+    options: TournamentOptions = Field(..., description="Tournament options used")
+    event_date: str = Field(..., description="Event date in DD-MM-YYYY format")
 
-
-class TournamentResultsResponse(BaseModel):
-    """Tournament results retrieval response model"""
-    event_id: str = Field(..., description="Unique event identifier")
-    mode: str = Field(..., description="Tournament format")
-    processed_at: datetime = Field(..., description="Timestamp when processing was completed")
-    results: List[TournamentResult] = Field(..., description="List of tournament results")
 
 
 class SheetsUpdateRequest(BaseModel):

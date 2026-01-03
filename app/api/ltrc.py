@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from datetime import datetime
 from typing import Dict, Any
 from app.models.ltrc import (
-    TournamentRequest, TournamentResponse, TournamentResultsResponse,
+    TournamentRequest, TournamentResponse,
     SheetsUpdateRequest, SheetsUpdateResponse
 )
 from app.services.ltrc_processor import LTRCProcessor
@@ -53,12 +53,16 @@ async def process_tournament(request: TournamentRequest):
             event_id=request.event_id
         )
         
+        # Ensure event_date is set correctly
+        event_date_value = result.get("event_date") or request.event_date
+        
         response = TournamentResponse(
             event_id=request.event_id,
             mode=result["mode"],
             processed_at=result["processed_at"],
             results=result["results"],
-            event_date=result.get("event_date", request.event_date)
+            options=request.options,
+            event_date=event_date_value
         )
         
         tournament_storage[request.event_id] = {
@@ -66,8 +70,10 @@ async def process_tournament(request: TournamentRequest):
             "response": response.dict()
         }
 
-        # Save results as JSON in database directory
-        output_dir = "database"
+        # Save results as JSON in database directory with season folder structure
+        season = request.event_id.split('E')[0]
+        
+        output_dir = os.path.join("database", season)
         os.makedirs(output_dir, exist_ok=True)
         json_filename = f"{request.event_id}.json"
         json_path = os.path.join(output_dir, json_filename)
@@ -88,7 +94,7 @@ async def process_tournament(request: TournamentRequest):
     except Exception as e:
         logger.error(f"Error processing tournament: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error processing tournament: {str(e)}")
-@router.get("/results/{event_id}", response_model=TournamentResultsResponse)
+@router.get("/results/{event_id}", response_model=TournamentResponse)
 async def get_tournament_results(event_id: str):
     """
     Retrieve processed tournament results by ID.
@@ -97,13 +103,14 @@ async def get_tournament_results(event_id: str):
         event_id: Unique event identifier
         
     Returns:
-        TournamentResultsResponse: Tournament results
+        TournamentResponse: Tournament results
     """
     try:
         logger.info(f"Retrieving results for event: {event_id}")
         
-        # Check if results exist in database directory
-        json_path = os.path.join("database", f"{event_id}.json")
+        # Check if results exist in database directory with season folder structure
+        season = event_id.split('E')[0]
+        json_path = os.path.join("database", season, f"{event_id}.json")
         if not os.path.exists(json_path):
             logger.warning(f"Results not found for event: {event_id}")
             raise HTTPException(status_code=404, detail=f"Results not found for event ID: {event_id}")
@@ -111,7 +118,7 @@ async def get_tournament_results(event_id: str):
         # Load from JSON file
         with open(json_path, 'r') as json_file:
             response_data = json.load(json_file)
-            return TournamentResultsResponse(**response_data)
+            return TournamentResponse(**response_data)
         
     except HTTPException:
         raise

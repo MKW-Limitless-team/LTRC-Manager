@@ -50,6 +50,13 @@ class ImageGenerator:
         self.font_file = self.config['font_file']
         self.colors = self.config['colors']
         
+        # Validate font file exists - check in assets directory
+        font_path = os.path.join(os.path.dirname(__file__), '..', '..', 'assets', self.font_file)
+        if not os.path.exists(font_path):
+            logger.error(f"Font file not found: {font_path}")
+            raise FileNotFoundError(f"Font file not found: {font_path}")
+        self.font_file = font_path
+        
         # Format specific configurations
         self.format_config = self.config['formats'][self.format_type]
         self.header_config = self.format_config['header']
@@ -859,13 +866,11 @@ class ImageGenerator:
         Returns:
             str: File path for the image
         """
-        # Extract season number from event_id (format: LTRC_SxEy)
-        import re
-        match = re.search(r'LTRC_S(\d+)E\d+', event_id)
-        season = match.group(1) if match else "unknown"
+        # Extract season from event_id (format: LTRC_SxEy)
+        season = event_id.split('E')[0]
         
         # Create season folder
-        season_dir = os.path.join(self.results_images_dir, f"Season_{season}")
+        season_dir = os.path.join(self.results_images_dir, season)
         os.makedirs(season_dir, exist_ok=True)
         
         # Create filename with only event_id (format not needed)
