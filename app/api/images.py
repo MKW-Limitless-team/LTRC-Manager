@@ -25,18 +25,14 @@ def load_config():
         logger.error(f"Error loading config: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to load configuration: {str(e)}")
 
-def get_image_generator():
-    """Get the global image generator instance"""
-    global image_generator
-    if image_generator is None:
-        config = load_config()
-        image_generator = ImageGenerator('FFA', config)
-    return image_generator
+def get_image_generator(format_type: str = 'FFA'):
+    """Get the image generator instance for a specific format"""
+    config = load_config()
+    return ImageGenerator(format_type, config)
 
 @router.get("/generate/{event_id}", response_class=StreamingResponse, summary="Generate tournament result image")
 async def generate_image(
-    event_id: str,
-    image_gen: ImageGenerator = Depends(get_image_generator)
+    event_id: str
 ):
     """
     Generate or retrieve tournament result image from saved results.
@@ -71,6 +67,9 @@ async def generate_image(
             raise HTTPException(status_code=500, detail="Missing tournament mode in results")
         if not players:
             raise HTTPException(status_code=500, detail="No player results found")
+        
+        # Create image generator with the correct format type from results
+        image_gen = get_image_generator(format_type)
         
         # Generate image using loaded data
         img = image_gen.generate_or_retrieve(
