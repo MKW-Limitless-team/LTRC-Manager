@@ -11,7 +11,6 @@ import json
 from typing import Dict, Any, Optional, List
 
 import gspread
-from gspread.utils import ValueRenderOption
 from google.oauth2.service_account import Credentials
 from app.utils.logging import get_logger
 
@@ -22,25 +21,24 @@ logger = get_logger(__name__)
 class SheetsManager:
     """
     Service class for managing Google Sheets operations.
-    Optimized for 2 API calls: one for reading, one for writing.
-    Based on the original MMR.py implementation.
+    Designed to keep Google Sheets reads and writes in one place.
     """
     
     def __init__(self):
-        """Initialize the sheets manager."""
-        logger.info("Initializing sheets manager")
+        """Initialise the sheets manager."""
+        logger.info("Initialising sheets manager")
         
         # Sheets configuration
         self.sheet_name = "LTRC"
         self.connected = False
 
-        # Initialize connection
-        self._initialize_connection()
+        # Initialise the connection.
+        self._initialise_connection()
     
-    def _initialize_connection(self):
-        """Initialize Google Sheets connection using gspread."""
+    def _initialise_connection(self):
+        """Initialise the Google Sheets connection using gspread."""
         try:
-            logger.info("Initializing Google Sheets connection")
+            logger.info("Initialising Google Sheets connection")
             
             # Load configuration to get sheet name
             if getattr(sys, 'frozen', False):
@@ -76,7 +74,7 @@ class SheetsManager:
             self.mode = self.Table_stuff.get("C1")[0][0] 
             
             self.connected = True
-            logger.info("Google Sheets connection initialized successfully")
+            logger.info("Google Sheets connection initialised successfully")
             
         except Exception as e:
             logger.error(f"Error initializing Google Sheets connection: {str(e)}")
@@ -117,95 +115,36 @@ class SheetsManager:
         except Exception as e:
             logger.error(f"Error updating Google Sheets: {str(e)}")
             raise
+
+    def is_locked(self) -> bool:
+        """Compatibility hook for the API. Sheets updates are currently unlocked."""
+        return False
     
     
     def _update_placements_sheet(self, event_id: str, results: List[Dict[str, Any]]) -> int:
-        """Update the placements sheet with tournament data (from MMR.py)."""
-        try:
-            logger.info(f"Updating placements sheet for event: {event_id}")
-            
-            updated_cells = 0
-            
-            # Handle placement updates (from MMR.py calculate_placement method)
-            for result in results:
-                player_name = result["name"]
-                completion = result.get("completion", "")
-                mmr_change = result.get("mmr_change", 0)
-                
-                # Find the player in placements sheet
-                cell = self.Placements.find(player_name, case_sensitive=False)
-                if cell:
-                    row = cell.row
-                    
-                    # Update completion status if player is unplaced
-                    if completion:
-                        self.Placements.update_cell(row, 2, completion)
-                        updated_cells += 1
-                    
-                    # Update MMR accumulation for unplaced players
-                    if completion:  # Unplaced player
-                        old_mmr_accum = self.Placements.cell(row, 8).value
-                        old_mmr_accum = int(old_mmr_accum) if old_mmr_accum else 0
-                        new_mmr_accum = old_mmr_accum + mmr_change
-                        self.Placements.update_cell(row, 8, new_mmr_accum)
-                        updated_cells += 1
-                        
-                        # Update placement points based on completion
-                        if completion == "1/3":
-                            self.Placements.update_cell(row, 4, result["score"])
-                            updated_cells += 1
-                        elif completion == "2/3":
-                            self.Placements.update_cell(row, 5, result["score"])
-                            updated_cells += 1
-                        elif completion == "3/3":
-                            self.Placements.update_cell(row, 6, result["score"])
-                            updated_cells += 1
-            
-            logger.info(f"Updated {updated_cells} cells in placements sheet")
-            return updated_cells
-            
-        except Exception as e:
-            logger.error(f"Error updating placements sheet: {str(e)}")
-            raise
+        """Placement state is app-owned now, so placement sheet writes are skipped."""
+        logger.info(f"Skipping placements sheet update for event: {event_id}")
+        return 0
     
     def _update_playerdata_sheet(self, event_id: str, results: List[Dict[str, Any]]) -> int:
-        """Update the player data sheet with tournament results (from MMR.py)."""
+        """Update the player data sheet with tournament results."""
         try:
             logger.info(f"Updating player data sheet for event: {event_id}")
             
             updated_cells = 0
             
-            # Handle player data updates (from MMR.py update_sheet method)
+            # Write each player's new MMR back to the sheet.
             for result in results:
                 player_name = result["name"]
                 new_mmr = result["new_mmr"]
-                rank = result["rank"]
-                rank_change = result["rank_change"]
-                score = result["score"]
-                mmr_change = result["mmr_change"]
                 
-                # Find the player in playerdata sheet
+                # Find the player in the player data sheet.
                 cell = self.Playerdata.find(player_name, case_sensitive=False)
                 if cell:
                     row = cell.row
                     
-                    # Update MMR
+                    # Update the MMR column.
                     self.Playerdata.update_cell(row, 4, new_mmr)
-                    updated_cells += 1
-                    
-                    # Update rank change information (from MMR.py fill_rank_change_table)
-                    old_mmr = result.get("old_mmr", 4500)
-                    old_rank = self._get_rank_from_mmr(old_mmr)
-                    
-                    if old_rank == rank:
-                        rank_change_display = ""
-                        up_down = "-"
-                    else:
-                        rank_change_display = rank
-                        up_down = "▲" if self._get_rank_value(rank) > self._get_rank_value(old_rank) else "▼"
-                    
-                    # Update rank change display (would need to find the correct column based on mode)
-                    # For now, just update the MMR which is the most important part
                     updated_cells += 1
             
             logger.info(f"Updated {updated_cells} cells in player data sheet")
@@ -214,42 +153,6 @@ class SheetsManager:
         except Exception as e:
             logger.error(f"Error updating player data sheet: {str(e)}")
             raise
-    
-    def _get_rank_from_mmr(self, mmr: int) -> str:
-        """Get rank name from MMR value (from MMR.py)."""
-        if mmr < 2000:
-            return "Tin"
-        elif mmr < 3000:
-            return "Bronze"
-        elif mmr < 4000:
-            return "Silver"
-        elif mmr < 5000:
-            return "Gold"
-        elif mmr < 6000:
-            return "Emerald"
-        elif mmr < 7000:
-            return "Sapphire"
-        elif mmr < 8000:
-            return "Ruby"
-        elif mmr < 9000:
-            return "Duke"
-        elif mmr < 10000:
-            return "Master"
-        elif mmr < 11000:
-            return "Grandmaster"
-        elif mmr < 15000:
-            return "Monarch"
-        else:
-            return "Sovereign"
-    
-    def _get_rank_value(self, rank: str) -> int:
-        """Get numerical value for rank comparison (from MMR.py)."""
-        rank_values = {
-            "Tin": 0, "Bronze": 1, "Silver": 2, "Gold": 3, "Emerald": 4,
-            "Sapphire": 5, "Ruby": 6, "Duke": 7, "Master": 8, 
-            "Grandmaster": 9, "Monarch": 10, "Sovereign": 11
-        }
-        return rank_values.get(rank, 0)
     
     def get_sheets_status(self) -> Dict[str, Any]:
         """Check Google Sheets connection status."""
@@ -262,6 +165,9 @@ class SheetsManager:
             status = {
                 "connected": connected,
                 "sheet_name": self.sheet_name,
+                "locked": False,
+                "locked_by": None,
+                "last_update": None,
                 "error": None
             }
             
@@ -272,5 +178,8 @@ class SheetsManager:
             return {
                 "connected": False,
                 "sheet_name": self.sheet_name,
+                "locked": False,
+                "locked_by": None,
+                "last_update": None,
                 "error": str(e)
             }

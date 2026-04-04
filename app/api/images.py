@@ -105,22 +105,3 @@ async def generate_image(
     except Exception as e:
         logger.error(f"Error generating/retrieving image: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to generate/retrieve image: {str(e)}")
-
-@router.get("/health", summary="Check image generation service health")
-async def image_generation_health(image_gen: ImageGenerator = Depends(get_image_generator)):
-    """
-    Check the health of the image generation service.
-    
-    Returns the status of the image generation service and its configuration.
-    """
-    try:
-        return {
-            "status": "healthy",
-            "service": "image_generation",
-            "formats_supported": len(image_gen.format_config['formats']),
-            "configuration_loaded": True,
-            "message": "Image generation service is ready"
-        }
-    except Exception as e:
-        logger.error(f"Error checking image generation health: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")

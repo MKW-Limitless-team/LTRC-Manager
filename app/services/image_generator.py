@@ -2,7 +2,6 @@
 Image generation service.
 
 This module contains the business logic for generating tournament result images.
-Based on the original imagegen.py with external Mii renderer API integration.
 """
 
 from datetime import datetime
@@ -27,7 +26,6 @@ class ImageGenerator:
     
     This class handles the creation of professional tournament result images
     with player information, MMR changes, and custom formatting.
-    Based on the original LTRCImageGenerator from imagegen.py
     """
     
     def __init__(self, format_type: str, config: Dict[str, Any]):
@@ -306,30 +304,24 @@ class ImageGenerator:
         Returns:
             string: The rank name (lowercase for file lookup purposes)
         """
-        if mmr < 2000:
-            return "tin"
+        if mmr < 500:
+            return "soldier"
+        elif mmr < 1000:
+            return "squire"
+        elif mmr < 2000:
+            return "knight"
         elif mmr < 3000:
-            return "bronze"
+            return "lord"
         elif mmr < 4000:
-            return "silver"
+            return "viscount"
         elif mmr < 5000:
-            return "gold"
-        elif mmr < 6000:
-            return "emerald"
-        elif mmr < 7000:
-            return "sapphire"
-        elif mmr < 8000:
-            return "ruby"
-        elif mmr < 9000:
             return "duke"
-        elif mmr < 10000:
-            return "master"
-        elif mmr < 11000:
-            return "grandmaster"
-        elif mmr < 15000:
+        elif mmr < 6000:
             return "monarch"
-        else:
+        elif mmr < 8000:
             return "sovereign"
+        else:
+            return "ascendant"
 
     def _draw_player_score_line(self, img, player_data, center_x, stats_y, stats_size, horizontal_spacing):
         """
@@ -352,8 +344,6 @@ class ImageGenerator:
         player_score = player_data["score"]
         mmr_change = player_data["mmr_change"]
         new_mmr = player_data["new_mmr"]
-        completion = player_data["completion"]
-        
         # Determine rank based on MMR
         rank = self._determine_rank_from_mmr(new_mmr)
         
@@ -377,45 +367,34 @@ class ImageGenerator:
         score_text = f"{player_score}"
         mmr_text = f"{mmr_prefix}{mmr_change}"
         
-        # If the player is not fully placed, add an asterisk to the MMR
-        new_mmr_text = f"{new_mmr}*" if completion in ["1/3", "2/3"] else f"{new_mmr}"
+        new_mmr_text = f"{new_mmr}"
         
         # Calculate MMR color
         mmr_color = self.colors['mmr_up'] if mmr_change >= 0 else self.colors['mmr_down']
         
-        # Check if we need to show placement completion instead of rank icons
-        if completion in ["1/3", "2/3"]:
-            # Player is in placement matches - prepare to show completion text
-            placement_text = completion
-            placement_color = name_color  # Use same color as name
+        # Placement progress is no longer displayed; always show normal rank indicators.
+        direction_icon = None
+        direction_tint = None
+        
+        if rank_change > 0:
+            direction_path = self._get_direction_icon_path("up")
+            direction_tint = self.colors['mmr_up']
+        elif rank_change < 0:
+            direction_path = self._get_direction_icon_path("down")
+            direction_tint = self.colors['mmr_down']
         else:
-            # Player is fully placed - prepare rank change and rank icons
-            # Get direction icon path based on rank change
-            direction_icon = None
+            direction_path = self._get_direction_icon_path("neutral")
             direction_tint = None
-            
-            if completion == "3/3":
-                direction_path = self._get_direction_icon_path("right")
-                direction_tint = None
-            elif rank_change > 0:
-                direction_path = self._get_direction_icon_path("up")
-                direction_tint = self.colors['mmr_up']
-            elif rank_change < 0:
-                direction_path = self._get_direction_icon_path("down")
-                direction_tint = self.colors['mmr_down']
-            else:
-                direction_path = self._get_direction_icon_path("neutral")
-                direction_tint = None
-            
-            # Load direction icon with caching
-            rank_change_icon_size = (stats_size - 5, stats_size - 5)
-            direction_icon = self._load_image(direction_path, rank_change_icon_size)
-            
-            # Get rank icon path and load it
-            rank_icon = None
-            rank_icon_size = (stats_size, stats_size)
-            rank_icon_path = self._get_rank_icon_path(rank)
-            rank_icon = self._load_image(rank_icon_path, rank_icon_size)
+        
+        # Load direction icon with caching
+        rank_change_icon_size = (stats_size - 5, stats_size - 5)
+        direction_icon = self._load_image(direction_path, rank_change_icon_size)
+        
+        # Get rank icon path and load it
+        rank_icon = None
+        rank_icon_size = (stats_size, stats_size)
+        rank_icon_path = self._get_rank_icon_path(rank)
+        rank_icon = self._load_image(rank_icon_path, rank_icon_size)
         
         # Calculate icon sizes
         rank_change_icon_size = (stats_size - 5, stats_size - 5)
@@ -425,20 +404,13 @@ class ImageGenerator:
         full_stats_text = f"{score_text}{separator}{mmr_text}{separator}{new_mmr_text}"
         full_stats_width = draw.textlength(full_stats_text, font=stats_font)
         
-        # Add width of completion text or icon widths
+        # Add width of icons
         separator_width = draw.textlength(separator, font=stats_font)
-        
-        if completion in ["1/3", "2/3"]:
-            # Calculate width needed for completion text
-            placement_width = draw.textlength(placement_text, font=stats_font)
-            icons_width = placement_width
-        else:
-            # Calculate width needed for icons
-            icons_width = 0
-            if 'direction_icon' in locals() and direction_icon:
-                icons_width += rank_change_icon_size[0] + horizontal_spacing//2
-            if 'rank_icon' in locals() and rank_icon:
-                icons_width += rank_icon_size[0]
+        icons_width = 0
+        if direction_icon:
+            icons_width += rank_change_icon_size[0] + horizontal_spacing//2
+        if rank_icon:
+            icons_width += rank_icon_size[0]
         
         # Center everything
         total_width = full_stats_width + separator_width + icons_width
@@ -464,47 +436,34 @@ class ImageGenerator:
         draw.text((stats_x, stats_y), new_mmr_text, fill=name_color, font=stats_font)
         stats_x += draw.textlength(new_mmr_text, font=stats_font)
         
-        # Draw separator before icons or completion text
+        # Draw separator before icons
         draw.text((stats_x, stats_y), separator, fill=name_color, font=stats_font)
         stats_x += draw.textlength(separator, font=stats_font)
+
+        # Get icon vertical alignment adjustment from config and scale it with the stats size
+        base_icon_y_offset = self.podium_style['icon_y_offset']
+        reference_size = 40
+        icon_y_offset = base_icon_y_offset * (stats_size / reference_size)
         
-        if completion in ["1/3", "2/3"]:
-            # Draw completion text instead of icons
-            draw.text((stats_x, stats_y), placement_text, fill=placement_color, font=stats_font)
-        else:
-            # Get icon vertical alignment adjustment from config and scale it with the stats size
-            base_icon_y_offset = self.podium_style['icon_y_offset']
-            # Scale offset based on the ratio of current size to a reference size (e.g., 40)
-            reference_size = 40  # Reference font size for scaling
-            icon_y_offset = base_icon_y_offset * (stats_size / reference_size)
+        # Calculate common vertical position for both icons with configurable and scaled offset
+        icons_y = stats_y + (stats_size - rank_change_icon_size[1]) // 2 + int(icon_y_offset)
+        
+        # Draw direction icon
+        if direction_icon:
+            if direction_tint:
+                rgb_color = ImageColor.getrgb(direction_tint)
+                tint = Image.new('RGBA', direction_icon.size, (*rgb_color, 255))
+                mask = direction_icon.split()[3]
+                tinted_icon = Image.new('RGBA', direction_icon.size, (0, 0, 0, 0))
+                tinted_icon.paste(tint, (0, 0), mask)
+                direction_icon = tinted_icon
             
-            # Calculate common vertical position for both icons with configurable and scaled offset
-            icons_y = stats_y + (stats_size - rank_change_icon_size[1]) // 2 + int(icon_y_offset)
-            
-            # Draw direction icon
-            if direction_icon:
-                # Apply tinting if needed
-                if direction_tint:
-                    # Convert hex color to RGB tuple
-                    rgb_color = ImageColor.getrgb(direction_tint)
-                    
-                    # Create a solid color image with our tint
-                    tint = Image.new('RGBA', direction_icon.size, (*rgb_color, 255))
-                    
-                    # Apply tint by using the icon as a mask
-                    mask = direction_icon.split()[3]
-                    tinted_icon = Image.new('RGBA', direction_icon.size, (0, 0, 0, 0))
-                    tinted_icon.paste(tint, (0, 0), mask)
-                    direction_icon = tinted_icon
-                
-                # Paste direction icon
-                img.paste(direction_icon, (int(stats_x), int(icons_y)), direction_icon)
-                stats_x += rank_change_icon_size[0] + horizontal_spacing//2
-            
-            # Draw rank icon
-            if rank_icon:
-                # Paste rank icon
-                img.paste(rank_icon, (int(stats_x), int(icons_y)), rank_icon)
+            img.paste(direction_icon, (int(stats_x), int(icons_y)), direction_icon)
+            stats_x += rank_change_icon_size[0] + horizontal_spacing//2
+        
+        # Draw rank icon
+        if rank_icon:
+            img.paste(rank_icon, (int(stats_x), int(icons_y)), rank_icon)
 
     def _render_podium(self, img, results):
         """
