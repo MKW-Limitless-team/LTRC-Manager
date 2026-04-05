@@ -1,7 +1,11 @@
 auto-mmr-calculator-9676e1429d9a.json
 __pycache__
 build
+dist
 main.spec
 venv
 database
 ltrc_manager.log
+node_modules
+.env
+LTRC-Manager-old/

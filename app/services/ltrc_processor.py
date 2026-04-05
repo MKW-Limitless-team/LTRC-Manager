@@ -25,6 +25,15 @@ class LTRCProcessor:
     This class handles the core business logic for tournament processing,
     including MMR calculations, placement handling, and Google Sheets updates.
     """
+
+    MAX_LOSS_BY_MODE = {
+        "FFA": 220,
+        "2vs2": 200,
+        "3vs3": 180,
+        "4vs4": 160,
+        "5vs5": 140,
+        "6vs6": 140,
+    }
     
     def __init__(self):
         """Initialise the LTRC processor."""
@@ -78,6 +87,7 @@ class LTRCProcessor:
             sheet = client.open(self.sheet_name) 
 
             # Get the individual sheets of the Spreadsheet
+            self.TR_Tables = sheet.get_worksheet(2)
             self.Playerdata = sheet.get_worksheet(4)
             
             logger.info("Google Sheets connection initialised successfully for LTRC processor")
@@ -99,6 +109,86 @@ class LTRCProcessor:
         except Exception as e:
             logger.error(f"Error reading sheets data: {str(e)}")
             raise
+
+    def get_player_names(self) -> List[str]:
+        """Return the known player names from the LTRC sheet."""
+        if self.playerdata_cache is None:
+            self._read_sheets_data()
+
+        names = []
+        seen = set()
+        ignored_headers = {"player", "players", "name", "names"}
+        for row in self.playerdata_cache:
+            if row and len(row) > 0 and row[0]:
+                candidate = row[0].strip()
+                normalised_candidate = candidate.lower()
+                if (
+                    candidate
+                    and normalised_candidate not in ignored_headers
+                    and normalised_candidate not in seen
+                ):
+                    names.append(candidate)
+                    seen.add(normalised_candidate)
+
+        return names
+
+    def _ensure_players_exist(self, players: List[Dict[str, Any]]) -> None:
+        """Add unknown players to Playerdata with placeholder MMR before processing."""
+        if self.playerdata_cache is None:
+            self._read_sheets_data()
+
+        known_names = {
+            row[0].strip().lower()
+            for row in self.playerdata_cache
+            if row and len(row) > 0 and row[0]
+        }
+
+        new_rows = []
+        for player in players:
+            normalised_name = player["name"].strip().lower()
+            if normalised_name not in known_names:
+                new_rows.append([player["name"], "", "", "???"])
+                known_names.add(normalised_name)
+
+        if new_rows:
+            logger.info("Adding %s new player(s) to Playerdata", len(new_rows))
+            self.Playerdata.append_rows(new_rows, value_input_option="RAW")
+            self.playerdata_cache.extend(new_rows)
+
+    def _get_table_range_for_mode(self, mode: str) -> str:
+        ranges = {
+            "FFA": "B3:C14",
+            "2vs2": "B23:C39",
+            "3vs3": "B48:C62",
+            "4vs4": "B71:C84",
+            "5vs5": "B92:C104",
+            "6vs6": "B92:C104",
+        }
+        if mode not in ranges:
+            raise ValueError(f"Unsupported tournament format: {mode}")
+        return ranges[mode]
+
+    def load_players_from_sheet(self, mode: str) -> List[Dict[str, Any]]:
+        """Load the current tournament player list and scores from Google Sheets."""
+        range_str = self._get_table_range_for_mode(mode)
+        rows = self.TR_Tables.get(range_str)
+
+        players = []
+        for row in rows:
+            if not row or len(row) < 2 or not row[0]:
+                continue
+            players.append(
+                {
+                    "name": row[0],
+                    "score": int(row[1]),
+                    "mii_data": "",
+                }
+            )
+
+        if not players:
+            raise ValueError(f"No players found in the Google Sheet for mode {mode}")
+
+        return players
     
     def _get_player_mmr_from_sheets(self, player_name: str) -> int:
         """Get player's current MMR from Playerdata sheet."""
@@ -248,6 +338,7 @@ class LTRCProcessor:
                         raise ValueError(f"Score {score} exceeds maximum for normal events (180)")
             
             event_history = self._load_event_history()
+            self._ensure_players_exist(players)
 
             # Read player data from Google Sheets and enrich player dictionaries
             for player in players:
@@ -281,7 +372,6 @@ class LTRCProcessor:
             # Add rankings to player dictionaries
             for i, player in enumerate(players):
                 player["ranking"] = rankings[i]
-                player["completion"] = ""
             
             # Find K-values.
             k_values = self._get_k_values(rankings, mode)
@@ -364,43 +454,28 @@ class LTRCProcessor:
         return rankings
     
     def _get_k_values(self, rankings: List[int], mode: str) -> List[int]:
-        """Get K values based on rankings and tournament mode using the correct formula."""
-        # Get format configuration to determine team size and max players
+        """Get K values based on rankings and tournament mode."""
         format_config = self.FORMAT_CONFIGS[mode]
         team_size = format_config["team_size"]
-        max_players = format_config["max_players"]
-        
-        # Calculate maximum number of teams/players (depending on format)
-        if mode == "FFA":
-            # For FFA, it's individual players
-            max_teams = max_players
-        else:
-            # For team formats, it's number of teams
-            max_teams = max_players // team_size
-        
-        # Maximum loss value, using the FFA cap as the baseline.
-        max_loss = 20
-        
-        # Calculate K values from the ranking position.
+        team_count = len(rankings) if team_size == 1 else len(rankings) // team_size
+        max_loss = self.MAX_LOSS_BY_MODE[mode]
+
+        if team_count <= 1:
+            return [0 for _ in rankings]
+
         k_values = []
         for ranking in rankings:
-            # Calculate the ratio: (ranking - 1) / (max_teams - 1)
-            if max_teams > 1:
-                ratio = (ranking - 1) / (max_teams - 1)
-            else:
-                ratio = 0  # Avoid division by zero.
-            
-            # Apply the formula and round to the nearest integer.
-            k_value = min(round(ratio), max_loss)
+            ratio = (ranking - 1) / (team_count - 1)
+            k_value = int(round(ratio * max_loss))
             k_values.append(k_value)
-        
+
         return k_values
     
     def _calculate_mmr_changes(self, players: List[Dict[str, Any]], lr_list: List[int],
                              k_values: List[int], rankings: List[int], mode: str,
                              options: Dict[str, Any]) -> tuple:
         """Calculate MMR changes for all players."""
-        C = 100
+        C = self.MAX_LOSS_BY_MODE[mode]
         p_mu = 5800
         
         # Calculate the average MMR of the room.
@@ -460,7 +535,6 @@ class LTRCProcessor:
                 "old_mmr": old_mmr,
                 "new_mmr": player["new_mmr"],
                 "mmr_change": player["mmr_change"],
-                "completion": "",
                 "mii_data": player["mii_data"] if "mii_data" in player else ""
             }
 
@@ -473,6 +547,26 @@ class LTRCProcessor:
         import time
         timestamp = int(time.time())
         return f"LTRC_S1E{timestamp}"
+
+    def get_next_event_id(self, season_number: int = 5) -> str:
+        """Return the next sequential event ID for the given season."""
+        season = f"LTRC_S{season_number}"
+        season_dir = os.path.join(self.base_dir, "database", season)
+
+        highest_event = 0
+        if os.path.isdir(season_dir):
+            for filename in os.listdir(season_dir):
+                if not filename.endswith(".json"):
+                    continue
+                match = filename.removesuffix(".json")
+                prefix = f"{season}E"
+                if not match.startswith(prefix):
+                    continue
+                suffix = match[len(prefix):]
+                if suffix.isdigit():
+                    highest_event = max(highest_event, int(suffix))
+
+        return f"{season}E{highest_event + 1}"
     
     def update_google_sheets(self, event_id: str, update_placements: bool = True, 
                            update_playerdata: bool = True) -> Dict[str, Any]:

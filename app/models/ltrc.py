@@ -5,8 +5,9 @@ This module contains models specific to tournament processing and MMR calculatio
 """
 
 from datetime import datetime
-from typing import List, Optional
-from pydantic import BaseModel, Field, field_validator
+from typing import List
+
+from pydantic import BaseModel, Field
 
 
 class PlayerData(BaseModel):
@@ -34,14 +35,26 @@ class TournamentRequest(BaseModel):
     event_date: str = Field(..., description="Date when the event was held (DD-MM-YYYY format)",
                           pattern=r"^\d{1,2}-\d{1,2}-\d{4}$")
 
+
+class WorkflowProcessRequest(BaseModel):
+    """Workflow processing request that reads players from Google Sheets."""
+    event_id: str = Field(..., description="Unique event identifier")
+    mode: str = Field(..., description="Tournament format", pattern="^(FFA|2vs2|3vs3|4vs4|5vs5|6vs6)$")
+    options: TournamentOptions = Field(default_factory=TournamentOptions, description="Tournament options")
+    event_date: str = Field(
+        ...,
+        description="Date when the event was held (DD-MM-YYYY format)",
+        pattern=r"^\d{1,2}-\d{1,2}-\d{4}$",
+    )
+
 class TournamentResult(BaseModel):
     """Tournament result model"""
     name: str = Field(..., description="Player's name")
+    ranking: int = Field(..., description="Player or team ranking")
     score: int = Field(..., description="Player's score")
     old_mmr: int = Field(..., description="Player's MMR before the tournament")
     new_mmr: int = Field(..., description="Player's MMR after the tournament")
     mmr_change: int = Field(..., description="MMR change (can be negative)")
-    completion: str = Field(..., description="Placement completion status")
     mii_data: str = Field(..., description="Base64-encoded Mii image data")
 
 

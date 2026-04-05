@@ -14,7 +14,6 @@ class PlayerResult(BaseModel):
     score: int = Field(..., description="Player score")
     mmr_change: int = Field(..., description="MMR change for this tournament")
     new_mmr: int = Field(..., description="New MMR after this tournament")
-    completion: str = Field(..., description="Placement completion status (1/3, 2/3, 3/3)")
     mii_data: Optional[str] = Field(None, description="Base64-encoded Mii data")
 
 class ImageGenerationRequest(BaseModel):
@@ -23,6 +22,15 @@ class ImageGenerationRequest(BaseModel):
     results: List[PlayerResult] = Field(..., description="List of player results")
     event_id: Optional[str] = Field(None, description="Event ID for automatic subtitle generation (format: LTRC_SxEy)")
     event_date: Optional[str] = Field(None, description="Event date for subtitle format 'Event #y DD-MM-YYYY'")
+
+
+class SavedImageRequest(BaseModel):
+    """Generate an image from a previously processed event."""
+    event_id: str = Field(..., description="Processed event identifier")
+    subtitle: Optional[str] = Field(None, description="Optional subtitle override")
+    title: Optional[str] = Field(None, description="Optional title override")
+
+
 class ImageGenerationResponse(BaseModel):
     """Response model for image generation"""
     success: bool = Field(..., description="Whether the image generation was successful")

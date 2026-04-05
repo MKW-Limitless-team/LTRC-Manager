@@ -1,15 +1,22 @@
-from fastapi import APIRouter, HTTPException, Request
+from functools import lru_cache
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from datetime import datetime
 from typing import Dict, Any, List
 from pydantic import BaseModel, Field
 
 from app.models.sheets import SheetsUpdateRequest, SheetsUpdateResponse
+from app.auth.dependencies import require_authorized_user
 from app.services.sheets_manager import SheetsManager
 from app.utils.logging import get_logger
 
 router = APIRouter()
 logger = get_logger(__name__)
-sheets_manager = SheetsManager()
+
+
+@lru_cache(maxsize=1)
+def get_sheets_manager() -> SheetsManager:
+    return SheetsManager()
 
 class SheetsUpdateWithResultsRequest(BaseModel):
     """Request model for sheets update with tournament results"""
@@ -17,7 +24,10 @@ class SheetsUpdateWithResultsRequest(BaseModel):
     results: List[Dict[str, Any]] = Field(..., description="Tournament results to update")
 
 @router.post("/update", response_model=SheetsUpdateResponse)
-async def update_google_sheets(request: SheetsUpdateRequest):
+async def update_google_sheets(
+    request: SheetsUpdateRequest,
+    user=Depends(require_authorized_user),
+):
     """
     Update Google Sheets with tournament data. Only one update can be processed at a time.
     If another update is in progress, returns HTTP 423 (Locked).
@@ -31,6 +41,8 @@ async def update_google_sheets(request: SheetsUpdateRequest):
     try:
         logger.info(f"Processing sheets update request for event: {request.event_id}")
         
+        sheets_manager = get_sheets_manager()
+
         if sheets_manager.is_locked():
             raise HTTPException(
                 status_code=423,
@@ -54,7 +66,7 @@ async def update_google_sheets(request: SheetsUpdateRequest):
         raise HTTPException(status_code=500, detail=f"Error updating sheets: {str(e)}")
 
 @router.get("/status")
-async def get_sheets_status():
+async def get_sheets_status(user=Depends(require_authorized_user)):
     """
     Check Google Sheets connection and lock status.
     
@@ -64,7 +76,7 @@ async def get_sheets_status():
     try:
         logger.info("Retrieving Google Sheets status")
         
-        status = sheets_manager.get_sheets_status()
+        status = get_sheets_manager().get_sheets_status()
         return status
         
     except Exception as e:

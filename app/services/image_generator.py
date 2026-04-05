@@ -152,7 +152,7 @@ class ImageGenerator:
         
         return img
 
-    def _render_header(self, img, event_id=None, event_date=None):
+    def _render_header(self, img, event_id=None, event_date=None, title_text=None, subtitle_text=None):
         """
         Render the header section with automatic title and subtitle
         
@@ -166,8 +166,7 @@ class ImageGenerator:
         # === Render title ===
         title_font = ImageFont.truetype(self.font_file, self.header_config['title_size'])
         
-        # Use default format title (no custom titles)
-        title_text = f"{self.format_type} Results"
+        title_text = title_text or f"{self.format_type} Results"
         
         title_width = draw.textlength(title_text, font=title_font)
         title_x = (self.width - title_width) // 2
@@ -181,8 +180,8 @@ class ImageGenerator:
         subtitle_font = ImageFont.truetype(self.font_file, self.header_config['subtitle_size'])
         
         # Generate subtitle automatically if event info is available
-        subtitle = ""
-        if event_id and event_date:
+        subtitle = subtitle_text or ""
+        if not subtitle and event_id and event_date:
             # Extract event number from event_id (format: LTRC_SxEy)
             import re
             match = re.search(r'LTRC_S\d+E(\d+)', event_id)
@@ -881,7 +880,7 @@ class ImageGenerator:
             logger.error(f"Error saving image: {str(e)}")
             raise
 
-    def generate_or_retrieve(self, results, event_id=None, event_date=None):
+    def generate_or_retrieve(self, results, event_id=None, event_date=None, title_text=None, subtitle_text=None):
         """
         Generate or retrieve a tournament results image.
         First tries to retrieve an existing image, otherwise generates and saves a new one.
@@ -895,7 +894,7 @@ class ImageGenerator:
             PIL.Image: The tournament results image
         """
         # If we have an event_id, try to retrieve existing image first
-        if event_id:
+        if event_id and not title_text and not subtitle_text:
             existing_img = self._load_existing_image(event_id, self.format_type)
             if existing_img:
                 logger.info(f"Retrieved existing image for event: {event_id}")
@@ -903,7 +902,13 @@ class ImageGenerator:
         
         # Generate new image
         logger.info(f"Generating new image for event: {event_id}")
-        new_img = self.generate(results, event_id, event_date)
+        new_img = self.generate(
+            results,
+            event_id=event_id,
+            event_date=event_date,
+            title_text=title_text,
+            subtitle_text=subtitle_text,
+        )
         
         # Save the new image if we have an event_id
         if event_id:
@@ -911,7 +916,7 @@ class ImageGenerator:
         
         return new_img
 
-    def generate(self, results, event_id=None, event_date=None):
+    def generate(self, results, event_id=None, event_date=None, title_text=None, subtitle_text=None):
         """
         Generate the tournament results image
         
@@ -926,7 +931,13 @@ class ImageGenerator:
         content_img = Image.new('RGBA', (self.width, self.height), (0, 0, 0, 0))
         
         # Combine all rendering steps
-        content_img = self._render_header(content_img, event_id, event_date)
+        content_img = self._render_header(
+            content_img,
+            event_id=event_id,
+            event_date=event_date,
+            title_text=title_text,
+            subtitle_text=subtitle_text,
+        )
         content_img = self._render_podium(content_img, results)
         if len(results) > self.podium_count * self.team_size:
             content_img = self._render_regular_players(content_img, results)

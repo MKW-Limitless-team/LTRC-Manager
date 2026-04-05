@@ -1,19 +1,17 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Request
-from fastapi.responses import StreamingResponse, JSONResponse
-from typing import Optional, Dict, Any, List
-from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from typing import Dict, Any
 import io
-import os
 import json
-import logging
+import os
 
-from app.models.image import ImageGenerationRequest, ImageGenerationResponse, PlayerResult, ImageGenerationStatus
+from app.auth.dependencies import require_authorized_user
+from app.models.image import SavedImageRequest
 from app.services.image_generator import ImageGenerator
 from app.utils.logging import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/images", tags=["Image Generation"])
-image_generator = None
 
 def load_config():
     """Load configuration from config.json"""
@@ -30,9 +28,70 @@ def get_image_generator(format_type: str = 'FFA'):
     config = load_config()
     return ImageGenerator(format_type, config)
 
+
+def _load_saved_tournament(event_id: str) -> Dict[str, Any]:
+    season = event_id.split('E')[0]
+    json_path = os.path.join("database", season, f"{event_id}.json")
+    if not os.path.exists(json_path):
+        raise HTTPException(status_code=404, detail=f"Results not found for event {event_id}")
+
+    with open(json_path, 'r') as f:
+        return json.load(f)
+
+
+def _build_title(mode: str, options: Dict[str, Any] | None) -> str:
+    options = options or {}
+    title_parts = []
+    if options.get("32track"):
+        title_parts.append("32 Track")
+    if options.get("200cc"):
+        title_parts.append("200cc")
+    if options.get("ott"):
+        title_parts.append("OTT")
+    title_parts.append(f"{mode} Results")
+    return " ".join(title_parts)
+
+
+def _render_saved_image(event_id: str, subtitle: str | None = None, title: str | None = None):
+    results_data = _load_saved_tournament(event_id)
+
+    format_type = results_data.get("mode")
+    event_date = results_data.get("event_date", "")
+    players = results_data.get("results", [])
+
+    if not format_type:
+        raise HTTPException(status_code=500, detail="Missing tournament mode in results")
+    if not players:
+        raise HTTPException(status_code=500, detail="No player results found")
+
+    image_gen = get_image_generator(format_type)
+    title_text = title or _build_title(format_type, results_data.get("options"))
+    image = image_gen.generate_or_retrieve(
+        results=[
+            {
+                "name": player["name"],
+                "score": player["score"],
+                "mmr_change": player["mmr_change"],
+                "new_mmr": player["new_mmr"],
+                "mii_data": player.get("mii_data", ""),
+            }
+            for player in players
+        ],
+        event_id=event_id,
+        event_date=event_date,
+        title_text=title_text,
+        subtitle_text=subtitle,
+    )
+
+    img_buffer = io.BytesIO()
+    image.save(img_buffer, format='PNG')
+    img_buffer.seek(0)
+    return img_buffer
+
 @router.get("/generate/{event_id}", response_class=StreamingResponse, summary="Generate tournament result image")
 async def generate_image(
-    event_id: str
+    event_id: str,
+    user=Depends(require_authorized_user),
 ):
     """
     Generate or retrieve tournament result image from saved results.
@@ -47,48 +106,7 @@ async def generate_image(
     Returns 404 if results not found
     """
     try:
-        # Check if results exist with season folder structure
-        season = event_id.split('E')[0]
-        json_path = os.path.join("database", season, f"{event_id}.json")
-        if not os.path.exists(json_path):
-            raise HTTPException(status_code=404, detail=f"Results not found for event {event_id}")
-        
-        # Load results data
-        with open(json_path, 'r') as f:
-            results_data = json.load(f)
-        
-        # Safely extract required fields with defaults
-        format_type = results_data.get("mode")
-        event_date = results_data.get("event_date", "")  # Default to empty string
-        players = results_data.get("results", [])
-
-        # Validate required fields exist
-        if not format_type:
-            raise HTTPException(status_code=500, detail="Missing tournament mode in results")
-        if not players:
-            raise HTTPException(status_code=500, detail="No player results found")
-        
-        # Create image generator with the correct format type from results
-        image_gen = get_image_generator(format_type)
-        
-        # Generate image using loaded data
-        img = image_gen.generate_or_retrieve(
-            results=[{
-                "name": player["name"],
-                "score": player["score"],
-                "mmr_change": player["mmr_change"],
-                "new_mmr": player["new_mmr"],
-                "completion": player["completion"],
-                "mii_data": player.get("mii_data", "")
-            } for player in players],
-            event_id=event_id,
-            event_date=event_date
-        )
-        
-        img_buffer = io.BytesIO()
-        img.save(img_buffer, format='PNG')
-        img_buffer.seek(0)
-        img_bytes = img_buffer.getvalue()
+        img_buffer = _render_saved_image(event_id)
         
         return StreamingResponse(
             img_buffer,
@@ -96,8 +114,8 @@ async def generate_image(
             headers={
                 "Content-Disposition": f"attachment; filename={event_id}.png",
                 "X-Image-Format": "PNG",
-                "X-Image-Size": str(img_buffer.getbuffer().nbytes)
-            }
+                "X-Image-Size": str(img_buffer.getbuffer().nbytes),
+            },
         )
         
     except HTTPException:
@@ -105,3 +123,26 @@ async def generate_image(
     except Exception as e:
         logger.error(f"Error generating/retrieving image: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to generate/retrieve image: {str(e)}")
+
+
+@router.post("/generate", response_class=StreamingResponse, summary="Generate tournament result image with custom subtitle")
+async def generate_image_with_custom_text(
+    request: SavedImageRequest,
+    user=Depends(require_authorized_user),
+):
+    try:
+        img_buffer = _render_saved_image(request.event_id, subtitle=request.subtitle, title=request.title)
+        return StreamingResponse(
+            img_buffer,
+            media_type="image/png",
+            headers={
+                "Content-Disposition": f"attachment; filename={request.event_id}.png",
+                "X-Image-Format": "PNG",
+                "X-Image-Size": str(img_buffer.getbuffer().nbytes),
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating image with custom text: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate image: {str(e)}")
