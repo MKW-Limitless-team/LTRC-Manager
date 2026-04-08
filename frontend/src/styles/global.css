@@ -58,7 +58,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -276,7 +277,8 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -286,10 +288,16 @@ select {
 }
 
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(0, 116, 231, 0.18);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 132px;
 }
 
 .readonly-input {
@@ -375,6 +383,25 @@ select.team-6 {
   border: 1px solid rgba(69, 89, 113, 0.65);
   border-radius: 18px;
   background: rgba(17, 21, 37, 0.48);
+}
+
+.import-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(69, 89, 113, 0.55);
+  border-radius: 16px;
+  background: rgba(11, 15, 27, 0.36);
+}
+
+.import-label {
+  margin: 0;
+}
+
+.import-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .entry-panel-header {

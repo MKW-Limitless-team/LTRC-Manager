@@ -12,6 +12,9 @@ import type {
 } from "../lib/types";
 
 type WorkflowStep = "setup" | "review" | "image" | "write" | "done";
+type ImportableTournamentPayload = Partial<WorkflowProcessRequest> & {
+  players?: Array<Partial<PlayerEntry>>;
+};
 
 const MODES: TournamentMode[] = ["FFA", "2vs2", "3vs3", "4vs4", "5vs5", "6vs6"];
 const MAX_PLAYER_ROWS = 12;
@@ -88,6 +91,23 @@ function buildAutoSubtitle(eventId: string, eventDate: string): string {
   return eventNumber ? `Event #${eventNumber} ${eventDate}` : `Event ${eventDate}`;
 }
 
+function isTournamentMode(value: string): value is TournamentMode {
+  return MODES.includes(value as TournamentMode);
+}
+
+function buildPlayerRows(players: Array<Partial<PlayerEntry>>, maxRows: number): PlayerEntry[] {
+  const importedRows = players.slice(0, maxRows).map((player) => ({
+    name: typeof player.name === "string" ? player.name : "",
+    score: typeof player.score === "number" ? player.score : "",
+    mii_data: typeof player.mii_data === "string" ? player.mii_data : ""
+  }));
+
+  return [
+    ...importedRows,
+    ...Array.from({ length: MAX_PLAYER_ROWS - importedRows.length }, createEmptyPlayer)
+  ];
+}
+
 export function AppPage() {
   const queryClient = useQueryClient();
   const sessionQuery = useQuery({
@@ -120,6 +140,7 @@ export function AppPage() {
   });
   const [tournament, setTournament] = useState<TournamentResponse | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [importJson, setImportJson] = useState("");
   const [workflowError, setWorkflowError] = useState<string | null>(null);
   const [activeAutocompleteIndex, setActiveAutocompleteIndex] = useState<number | null>(null);
   const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState<number>(0);
@@ -268,6 +289,42 @@ export function AppPage() {
     setHighlightedSuggestionIndex(0);
   };
 
+  const importFromJson = () => {
+    try {
+      const parsed = JSON.parse(importJson) as ImportableTournamentPayload;
+
+      if (!parsed.mode || !isTournamentMode(parsed.mode)) {
+        throw new Error("Imported JSON must include a valid tournament format.");
+      }
+
+      if (!Array.isArray(parsed.players)) {
+        throw new Error("Imported JSON must include a players array.");
+      }
+
+      const nextMode = parsed.mode;
+      const maxPlayers = MAX_PLAYERS_BY_MODE[nextMode];
+
+      setForm((current) => ({
+        ...current,
+        mode: nextMode,
+        event_date: typeof parsed.event_date === "string" ? parsed.event_date : current.event_date,
+        options: {
+          "32track": Boolean(parsed.options?.["32track"]),
+          "200cc": Boolean(parsed.options?.["200cc"]),
+          ott: Boolean(parsed.options?.ott)
+        },
+        players: buildPlayerRows(parsed.players ?? [], maxPlayers)
+      }));
+
+      setWorkflowError(null);
+      setImportJson("");
+      setActiveAutocompleteIndex(null);
+      setHighlightedSuggestionIndex(0);
+    } catch (error) {
+      setWorkflowError(error instanceof Error ? error.message : "Failed to import tournament JSON.");
+    }
+  };
+
   return (
     <main className="app-shell">
       <header className="panel topbar">
@@ -356,6 +413,36 @@ export function AppPage() {
               <div>
                 <span className="eyebrow">Results Entry</span>
                 <h3>Player Results</h3>
+              </div>
+            </div>
+
+            <div className="import-panel">
+              <label className="stacked-label import-label">
+                <span>Import Process JSON</span>
+                <textarea
+                  value={importJson}
+                  onChange={(event) => setImportJson(event.target.value)}
+                  placeholder='Paste JSON like example_process.json here'
+                  rows={6}
+                />
+              </label>
+              <div className="import-actions">
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => setImportJson("")}
+                  disabled={!importJson.trim()}
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={importFromJson}
+                  disabled={!importJson.trim()}
+                >
+                  Import
+                </button>
               </div>
             </div>
 
