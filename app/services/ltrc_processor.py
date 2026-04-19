@@ -28,12 +28,15 @@ class LTRCProcessor:
 
     MAX_LOSS_BY_MODE = {
         "FFA": 220,
+        "FFA KO": 220,
         "2vs2": 200,
+        "2v2 GP": 200,
         "3vs3": 180,
         "4vs4": 160,
         "5vs5": 140,
         "6vs6": 140,
     }
+    NON_PLACEMENT_MODES = {"FFA KO", "2v2 GP"}
     
     def __init__(self):
         """Initialise the LTRC processor."""
@@ -46,7 +49,9 @@ class LTRCProcessor:
         # Format configuration with the correct player limits.
         self.FORMAT_CONFIGS = {
             "FFA": {"team_size": 1, "podium_count": 3, "max_players": 12},
+            "FFA KO": {"team_size": 1, "podium_count": 3, "max_players": 12},
             "2vs2": {"team_size": 2, "podium_count": 3, "max_players": 12},
+            "2v2 GP": {"team_size": 2, "podium_count": 3, "max_players": 12},
             "3vs3": {"team_size": 3, "podium_count": 3, "max_players": 12},
             "4vs4": {"team_size": 4, "podium_count": 3, "max_players": 12},
             "5vs5": {"team_size": 5, "podium_count": 2, "max_players": 10},
@@ -132,6 +137,22 @@ class LTRCProcessor:
 
         return names
 
+    def get_player_mmr_snapshot(self) -> Dict[str, int]:
+        """Return the current rated MMR values keyed by normalised player name."""
+        if self.playerdata_cache is None:
+            self._read_sheets_data()
+
+        mmr_snapshot: Dict[str, int] = {}
+        for row in self.playerdata_cache:
+            if len(row) <= 3 or not row[0] or not row[3] or row[3] == "???":
+                continue
+            try:
+                mmr_snapshot[self._normalise_player_name(row[0])] = int(row[3])
+            except ValueError:
+                continue
+
+        return mmr_snapshot
+
     def _ensure_players_exist(self, players: List[Dict[str, Any]]) -> None:
         """Add unknown players to Playerdata with placeholder MMR before processing."""
         if self.playerdata_cache is None:
@@ -158,7 +179,9 @@ class LTRCProcessor:
     def _get_table_range_for_mode(self, mode: str) -> str:
         ranges = {
             "FFA": "B3:C14",
+            "FFA KO": "B3:C14",
             "2vs2": "B23:C39",
+            "2v2 GP": "B23:C39",
             "3vs3": "B48:C62",
             "4vs4": "B71:C84",
             "5vs5": "B92:C104",
@@ -287,6 +310,10 @@ class LTRCProcessor:
         ratio = (score - min_score) / (max_score - min_score)
         placement_mmr = 1000 + ratio * 2000
         return int(round(placement_mmr))
+
+    def _is_non_placement_mode(self, mode: str) -> bool:
+        """Return whether this mode skips placement-based initial seeding."""
+        return mode in self.NON_PLACEMENT_MODES
     
     def process_tournament(self, event_id: str, mode: str, players: List[Dict[str, Any]], 
                           options: Dict[str, Any], event_date: str) -> Dict[str, Any]:
@@ -325,20 +352,23 @@ class LTRCProcessor:
                 raise ValueError(f"Player count must be divisible by team size ({team_size}) for {mode}")
             
             # Validate score limits.
-            for player in players:
-                score = player["score"]
-                # Check the 32track option directly.
-                if "32track" in options and options["32track"]:
-                    # 32-track events use a maximum of 480 points.
-                    if score > 480:
-                        raise ValueError(f"Score {score} exceeds maximum for 32-track mode (480)")
-                else:
-                    # Standard events use a maximum of 180 points.
-                    if score > 180:
-                        raise ValueError(f"Score {score} exceeds maximum for normal events (180)")
+            if not self._is_non_placement_mode(mode):
+                for player in players:
+                    score = player["score"]
+                    # Check the 32track option directly.
+                    if "32track" in options and options["32track"]:
+                        # 32-track events use a maximum of 480 points.
+                        if score > 480:
+                            raise ValueError(f"Score {score} exceeds maximum for 32-track mode (480)")
+                    else:
+                        # Standard events use a maximum of 180 points.
+                        if score > 180:
+                            raise ValueError(f"Score {score} exceeds maximum for normal events (180)")
             
             event_history = self._load_event_history()
             self._ensure_players_exist(players)
+
+            non_placement_mode = self._is_non_placement_mode(mode)
 
             # Read player data from Google Sheets and enrich player dictionaries
             for player in players:
@@ -349,16 +379,22 @@ class LTRCProcessor:
 
                     if player_mmr is None:
                         player["old_mmr"] = "???"
-                        player["lr_value"] = self._calculate_initial_placement_mmr(
-                            score=player["score"],
-                            room_size=len(players),
-                            options=options
-                        )
+                        if non_placement_mode:
+                            player["lr_value"] = 2000
+                            player["is_rated"] = False
+                        else:
+                            player["lr_value"] = self._calculate_initial_placement_mmr(
+                                score=player["score"],
+                                room_size=len(players),
+                                options=options
+                            )
+                            player["is_rated"] = True
                         player["is_placed"] = False
                     else:
                         player["old_mmr"] = player_mmr
                         player["lr_value"] = player_mmr
                         player["is_placed"] = True
+                        player["is_rated"] = True
                 except ValueError as e:
                     raise ValueError(f"Player '{player['name']}' not found in Playerdata sheet. Cannot process tournament without player data.")
             
@@ -415,20 +451,13 @@ class LTRCProcessor:
     def _find_rankings(self, scores: List[int], mode: str) -> List[int]:
         """Find rankings based on scores."""
         rankings = [1]
-        
+        team_size = self.FORMAT_CONFIGS[mode]["team_size"]
+
         # Build team scores for the selected format.
-        if mode == "FFA":
+        if team_size == 1:
             team_scores = scores
-        elif mode == "2vs2":
-            team_scores = [sum(scores[i:i+2]) for i in range(0, len(scores), 2)]
-        elif mode == "3vs3":
-            team_scores = [sum(scores[i:i+3]) for i in range(0, len(scores), 3)]
-        elif mode == "4vs4":
-            team_scores = [sum(scores[i:i+4]) for i in range(0, len(scores), 4)]
-        elif mode == "5vs5":
-            team_scores = [sum(scores[i:i+5]) for i in range(0, len(scores), 5)]
-        elif mode == "6vs6":
-            team_scores = [sum(scores[i:i+6]) for i in range(0, len(scores), 6)]
+        else:
+            team_scores = [sum(scores[i:i+team_size]) for i in range(0, len(scores), team_size)]
         
         # Assign rankings for players or teams.
         for i in range(1, len(team_scores)):
@@ -438,18 +467,8 @@ class LTRCProcessor:
                 rankings.append(i+1)
         
         # Expand team rankings back to the full player list.
-        if mode == "FFA":
-            rankings = rankings
-        elif mode == "2vs2":
-            rankings = [rankings[i//2] for i in range(len(rankings)*2)]
-        elif mode == "3vs3":
-            rankings = [rankings[i//3] for i in range(len(rankings)*3)]
-        elif mode == "4vs4":
-            rankings = [rankings[i//4] for i in range(len(rankings)*4)]
-        elif mode == "5vs5":
-            rankings = [rankings[i//5] for i in range(len(rankings)*5)]
-        elif mode == "6vs6":
-            rankings = [rankings[i//6] for i in range(len(rankings)*6)]
+        if team_size > 1:
+            rankings = [rankings[i // team_size] for i in range(len(rankings) * team_size)]
         
         return rankings
     
@@ -535,6 +554,7 @@ class LTRCProcessor:
                 "old_mmr": old_mmr,
                 "new_mmr": player["new_mmr"],
                 "mmr_change": player["mmr_change"],
+                "is_rated": player.get("is_rated", True),
                 "mii_data": player["mii_data"] if "mii_data" in player else ""
             }
 

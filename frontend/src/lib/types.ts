@@ -1,4 +1,4 @@
-export type TournamentMode = "FFA" | "2vs2" | "3vs3" | "4vs4" | "5vs5" | "6vs6";
+export type TournamentMode = "FFA" | "FFA KO" | "2vs2" | "2v2 GP" | "3vs3" | "4vs4" | "5vs5" | "6vs6";
 
 export interface TournamentOptions {
   "32track": boolean;
@@ -27,6 +27,7 @@ export interface TournamentResult {
   old_mmr: number;
   new_mmr: number;
   mmr_change: number;
+  is_rated: boolean;
   mii_data: string;
 }
 
@@ -62,6 +63,7 @@ export interface SheetsUpdateResult {
   score: number;
   new_mmr: number;
   mmr_change: number;
+  is_rated: boolean;
 }
 
 export interface SheetsUpdateRequest {

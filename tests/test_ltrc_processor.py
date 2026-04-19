@@ -8,14 +8,22 @@ def build_processor(tmp_path):
     processor.point_distribution = [15, 13, 11, 9, 8, 7, 6, 5, 4, 3, 2, 1]
     processor.FORMAT_CONFIGS = {
         "FFA": {"team_size": 1, "podium_count": 3, "max_players": 12},
+        "FFA KO": {"team_size": 1, "podium_count": 3, "max_players": 12},
         "2vs2": {"team_size": 2, "podium_count": 3, "max_players": 12},
+        "2v2 GP": {"team_size": 2, "podium_count": 3, "max_players": 12},
         "3vs3": {"team_size": 3, "podium_count": 3, "max_players": 12},
         "4vs4": {"team_size": 4, "podium_count": 3, "max_players": 12},
         "5vs5": {"team_size": 5, "podium_count": 2, "max_players": 10},
         "6vs6": {"team_size": 6, "podium_count": 2, "max_players": 12},
     }
+    processor.NON_PLACEMENT_MODES = {"FFA KO", "2v2 GP"}
     processor.event_history_path = str(tmp_path / "player_event_history.json")
     return processor
+
+
+def stub_sheet_dependencies(processor, mmr_by_name):
+    processor._ensure_players_exist = lambda players: None
+    processor._get_player_mmr_from_sheets = lambda name: mmr_by_name.get(name)
 
 
 def test_room_minimum_points_follow_room_size(tmp_path):
@@ -77,3 +85,116 @@ def test_event_history_tracks_each_event_once(tmp_path):
     assert saved_history["playerone"]["events_played"] == 1
     assert saved_history["playerone"]["event_ids"] == ["LTRC_S1E1"]
     assert saved_history["playertwo"]["events_played"] == 1
+
+
+def test_non_placement_modes_use_2000_seed_and_keep_players_unrated(tmp_path):
+    processor = build_processor(tmp_path)
+    stub_sheet_dependencies(processor, {})
+
+    result = processor.process_tournament(
+        event_id="LTRC_S1E10",
+        mode="FFA KO",
+        players=[
+            {"name": "PlayerOne", "score": 999, "mii_data": ""},
+            {"name": "PlayerTwo", "score": 700, "mii_data": ""},
+        ],
+        options={"32track": False, "200cc": False},
+        event_date="18-04-2026",
+    )
+
+    assert [player["old_mmr"] for player in result["results"]] == [-1, -1]
+    assert [player["is_rated"] for player in result["results"]] == [False, False]
+    assert all(isinstance(player["mmr_change"], int) for player in result["results"])
+    assert all(isinstance(player["new_mmr"], int) for player in result["results"])
+
+    with open(processor.event_history_path, "r") as history_file:
+        saved_history = json.load(history_file)
+
+    assert saved_history["playerone"]["events_played"] == 1
+    assert saved_history["playertwo"]["events_played"] == 1
+
+
+def test_standard_modes_still_rate_unranked_players_from_placement_seed(tmp_path):
+    processor = build_processor(tmp_path)
+    stub_sheet_dependencies(processor, {})
+
+    result = processor.process_tournament(
+        event_id="LTRC_S1E11",
+        mode="FFA",
+        players=[
+            {"name": "PlayerOne", "score": 180, "mii_data": ""},
+            {"name": "PlayerTwo", "score": 12, "mii_data": ""},
+        ],
+        options={"32track": False, "200cc": False},
+        event_date="18-04-2026",
+    )
+
+    assert [player["old_mmr"] for player in result["results"]] == [-1, -1]
+    assert [player["is_rated"] for player in result["results"]] == [True, True]
+    assert result["results"][0]["new_mmr"] > result["results"][1]["new_mmr"]
+
+
+def test_non_placement_modes_skip_score_cap_validation(tmp_path):
+    processor = build_processor(tmp_path)
+    stub_sheet_dependencies(processor, {"RatedOne": 2500, "RatedTwo": 2500})
+
+    result = processor.process_tournament(
+        event_id="LTRC_S1E12",
+        mode="FFA KO",
+        players=[
+            {"name": "RatedOne", "score": 999, "mii_data": ""},
+            {"name": "RatedTwo", "score": 700, "mii_data": ""},
+        ],
+        options={"32track": False, "200cc": False},
+        event_date="18-04-2026",
+    )
+
+    assert len(result["results"]) == 2
+
+
+def test_standard_modes_keep_existing_score_cap_validation(tmp_path):
+    processor = build_processor(tmp_path)
+    stub_sheet_dependencies(processor, {"RatedOne": 2500, "RatedTwo": 2500})
+
+    try:
+        processor.process_tournament(
+            event_id="LTRC_S1E13",
+            mode="FFA",
+            players=[
+                {"name": "RatedOne", "score": 181, "mii_data": ""},
+                {"name": "RatedTwo", "score": 12, "mii_data": ""},
+            ],
+            options={"32track": False, "200cc": False},
+            event_date="18-04-2026",
+        )
+    except ValueError as exc:
+        assert "exceeds maximum for normal events" in str(exc)
+    else:
+        raise AssertionError("Expected standard FFA to reject scores above 180")
+
+
+def test_2v2_gp_rankings_and_team_deltas_match_2vs2(tmp_path):
+    processor = build_processor(tmp_path)
+    scores = [100, 80, 70, 60]
+
+    assert processor._find_rankings(scores, "2v2 GP") == processor._find_rankings(scores, "2vs2")
+
+    rankings = processor._find_rankings(scores, "2v2 GP")
+    k_values = processor._get_k_values(rankings, "2v2 GP")
+    mmr_changes, _ = processor._calculate_mmr_changes(
+        players=[
+            {"tracked_event_count": 3},
+            {"tracked_event_count": 3},
+            {"tracked_event_count": 3},
+            {"tracked_event_count": 3},
+        ],
+        lr_list=[2100, 1900, 2300, 1700],
+        k_values=k_values,
+        rankings=rankings,
+        mode="2v2 GP",
+        options={"32track": False, "200cc": False},
+    )
+
+    assert rankings == [1, 1, 2, 2]
+    assert mmr_changes[0] == mmr_changes[1]
+    assert mmr_changes[2] == mmr_changes[3]

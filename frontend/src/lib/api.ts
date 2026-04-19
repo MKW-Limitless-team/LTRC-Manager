@@ -22,14 +22,12 @@ function resolveApiBaseUrl(): string {
     return configured;
   }
 
-  const appBasePath = normaliseBaseUrl(APP_BASE_PATH);
-  const { hostname, protocol } = window.location;
-
-  if (hostname === "localhost" || hostname === "127.0.0.1") {
+  if (import.meta.env.DEV) {
+    const { hostname, protocol } = window.location;
     return `${protocol}//${hostname}:8000`;
   }
 
-  return appBasePath;
+  return "";
 }
 
 const API_BASE_URL = resolveApiBaseUrl();

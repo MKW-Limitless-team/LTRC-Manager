@@ -3,7 +3,7 @@ FROM node:22-alpine AS build
 WORKDIR /frontend
 
 COPY frontend/package*.json ./
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+RUN npm install
 
 COPY frontend/ ./
 ARG VITE_API_BASE_URL=

@@ -293,34 +293,77 @@ class ImageGenerator:
                 if mii_data:
                     self._draw_mii(img, mii_data, mii_x, member_y, mii_size)
 
-    def _determine_rank_from_mmr(self, mmr):
+    def _determine_rank_from_mmr(self, mmr, is_rated=True, is_top_mmr=False):
         """
         Determine the rank based on MMR value
         
         Args:
             mmr: The MMR value
+            is_rated: Whether the player currently has a real displayed rating
+            is_top_mmr: Whether this player should receive the Ascendant rank
             
         Returns:
-            string: The rank name (lowercase for file lookup purposes)
+            string: The rank name
         """
-        if mmr < 500:
-            return "soldier"
-        elif mmr < 1000:
-            return "squire"
+        if not is_rated:
+            return "Soldier"
+        if is_top_mmr:
+            return "Ascendant"
+        if mmr < 1000:
+            return "Soldier"
         elif mmr < 2000:
-            return "knight"
+            return "Squire"
         elif mmr < 3000:
-            return "lord"
+            return "Knight"
         elif mmr < 4000:
-            return "viscount"
+            return "Lord"
         elif mmr < 5000:
-            return "duke"
+            return "Viscount"
         elif mmr < 6000:
-            return "monarch"
+            return "Commander"
+        elif mmr < 7000:
+            return "Duke"
         elif mmr < 8000:
-            return "sovereign"
+            return "Monarch"
         else:
-            return "ascendant"
+            return "Empyrean"
+
+    def _mark_ascendant_players(self, results):
+        """Annotate a copy of the results with Ascendant holders when none are precomputed."""
+        annotated_results = [dict(player_data) for player_data in results]
+        if any("is_top_mmr" in player_data or "old_is_top_mmr" in player_data for player_data in annotated_results):
+            return annotated_results
+
+        rated_players = [
+            (index, player_data)
+            for index, player_data in enumerate(annotated_results)
+            if player_data.get("is_rated", True)
+        ]
+
+        if not rated_players:
+            return annotated_results
+
+        highest_new_mmr = max(player_data["new_mmr"] for _, player_data in rated_players)
+        if highest_new_mmr > 3000:
+            top_players = [
+                index
+                for index, player_data in rated_players
+                if player_data["new_mmr"] == highest_new_mmr
+            ]
+            for index in top_players:
+                annotated_results[index]["is_top_mmr"] = True
+
+        highest_old_mmr = max(player_data["new_mmr"] - player_data["mmr_change"] for _, player_data in rated_players)
+        if highest_old_mmr > 3000:
+            previous_top_players = [
+                index
+                for index, player_data in rated_players
+                if player_data["new_mmr"] - player_data["mmr_change"] == highest_old_mmr
+            ]
+            for index in previous_top_players:
+                annotated_results[index]["old_is_top_mmr"] = True
+
+        return annotated_results
 
     def _draw_player_score_line(self, img, player_data, center_x, stats_y, stats_size, horizontal_spacing):
         """
@@ -343,12 +386,15 @@ class ImageGenerator:
         player_score = player_data["score"]
         mmr_change = player_data["mmr_change"]
         new_mmr = player_data["new_mmr"]
+        is_rated = player_data.get("is_rated", True)
+        is_top_mmr = player_data.get("is_top_mmr", False)
+        old_is_top_mmr = player_data.get("old_is_top_mmr", False)
         # Determine rank based on MMR
-        rank = self._determine_rank_from_mmr(new_mmr)
+        rank = self._determine_rank_from_mmr(new_mmr, is_rated=is_rated, is_top_mmr=is_top_mmr)
         
         # Determine rank change by comparing new rank with old rank
         old_mmr = new_mmr - mmr_change
-        old_rank = self._determine_rank_from_mmr(old_mmr)
+        old_rank = self._determine_rank_from_mmr(old_mmr, is_rated=is_rated, is_top_mmr=old_is_top_mmr)
         
         # Determine rank change direction
         if rank == old_rank:
@@ -926,7 +972,8 @@ class ImageGenerator:
             event_date: Optional event date for subtitle format "Event #y DD-MM-YYYY"
         """
         
-    
+        results = self._mark_ascendant_players(results)
+
         # Create a transparent canvas for drawing content
         content_img = Image.new('RGBA', (self.width, self.height), (0, 0, 0, 0))
         

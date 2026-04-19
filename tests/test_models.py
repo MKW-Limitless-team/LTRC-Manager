@@ -22,7 +22,7 @@ def test_base_models_validate():
         locked_by=None,
         last_processed=datetime.now(),
         active_instances=1,
-        supported_formats=["FFA", "2vs2"],
+        supported_formats=["FFA", "FFA KO", "2vs2", "2v2 GP"],
     )
     sheets = SheetsStatus(
         connected=True,
@@ -34,14 +34,14 @@ def test_base_models_validate():
     )
 
     assert error.code == "VALIDATION"
-    assert processing.supported_formats == ["FFA", "2vs2"]
+    assert processing.supported_formats == ["FFA", "FFA KO", "2vs2", "2v2 GP"]
     assert sheets.connected is True
 
 
 def test_tournament_request_and_options_aliases_work():
     request = TournamentRequest(
         event_id="LTRC_S1E1",
-        mode="FFA",
+        mode="FFA KO",
         players=[PlayerData(name="Player1", score=120, mii_data="")],
         options={"32track": True, "200cc": False, "ott": True},
         event_date="31-01-2025",
@@ -55,12 +55,12 @@ def test_tournament_request_and_options_aliases_work():
 def test_workflow_request_validates():
     workflow = WorkflowProcessRequest(
         event_id="LTRC_S1E5",
-        mode="2vs2",
+        mode="2v2 GP",
         options=TournamentOptions(),
         event_date="05-04-2026",
     )
 
-    assert workflow.mode == "2vs2"
+    assert workflow.mode == "2v2 GP"
     assert workflow.event_id == "LTRC_S1E5"
 
 
@@ -77,7 +77,7 @@ def test_tournament_response_supports_rankings_and_options():
                 old_mmr=4200,
                 new_mmr=4310,
                 mmr_change=110,
-                completion="",
+                is_rated=True,
                 mii_data="",
             )
         ],
@@ -92,7 +92,7 @@ def test_tournament_response_supports_rankings_and_options():
 def test_sheets_models_validate():
     request = SheetsUpdateRequest(
         event_id="LTRC_S1E1",
-        results=[SheetsUpdateResult(name="Player1", score=120, new_mmr=4300, mmr_change=100)],
+        results=[SheetsUpdateResult(name="Player1", score=120, new_mmr=4300, mmr_change=100, is_rated=True)],
     )
     response = SheetsUpdateResponse(
         success=True,

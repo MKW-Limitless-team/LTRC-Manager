@@ -135,6 +135,9 @@ class SheetsManager:
             
             # Write each player's new MMR back to the sheet.
             for result in results:
+                if not result.get("is_rated", True):
+                    continue
+
                 player_name = result["name"]
                 new_mmr = result["new_mmr"]
                 

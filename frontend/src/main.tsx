@@ -8,11 +8,15 @@ import "./styles/global.css";
 
 const queryClient = new QueryClient();
 const appBasePath = import.meta.env.VITE_APP_BASE_PATH ?? "/";
+const routerBasePath =
+  appBasePath !== "/" && appBasePath.endsWith("/")
+    ? appBasePath.slice(0, -1)
+    : appBasePath;
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter basename={appBasePath}>
+      <BrowserRouter basename={routerBasePath}>
         <App />
       </BrowserRouter>
     </QueryClientProvider>

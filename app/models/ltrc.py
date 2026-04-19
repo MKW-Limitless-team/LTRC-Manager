@@ -28,7 +28,7 @@ class TournamentRequest(BaseModel):
     """Tournament processing request model"""
     event_id: str = Field(..., description="Unique event identifier")
     mode: str = Field(..., description="Tournament format", 
-                     pattern="^(FFA|2vs2|3vs3|4vs4|5vs5|6vs6)$")
+                     pattern="^(FFA|FFA KO|2vs2|2v2 GP|3vs3|4vs4|5vs5|6vs6)$")
     players: List[PlayerData] = Field(..., description="List of players")
     options: TournamentOptions = Field(default_factory=TournamentOptions, 
                                      description="Tournament options")
@@ -39,7 +39,7 @@ class TournamentRequest(BaseModel):
 class WorkflowProcessRequest(BaseModel):
     """Workflow processing request that reads players from Google Sheets."""
     event_id: str = Field(..., description="Unique event identifier")
-    mode: str = Field(..., description="Tournament format", pattern="^(FFA|2vs2|3vs3|4vs4|5vs5|6vs6)$")
+    mode: str = Field(..., description="Tournament format", pattern="^(FFA|FFA KO|2vs2|2v2 GP|3vs3|4vs4|5vs5|6vs6)$")
     options: TournamentOptions = Field(default_factory=TournamentOptions, description="Tournament options")
     event_date: str = Field(
         ...,
@@ -55,6 +55,7 @@ class TournamentResult(BaseModel):
     old_mmr: int = Field(..., description="Player's MMR before the tournament")
     new_mmr: int = Field(..., description="Player's MMR after the tournament")
     mmr_change: int = Field(..., description="MMR change (can be negative)")
+    is_rated: bool = Field(..., description="Whether the player's resulting MMR should be persisted")
     mii_data: str = Field(..., description="Base64-encoded Mii image data")
 
 

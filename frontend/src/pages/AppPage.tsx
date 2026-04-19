@@ -16,11 +16,13 @@ type ImportableTournamentPayload = Partial<WorkflowProcessRequest> & {
   players?: Array<Partial<PlayerEntry>>;
 };
 
-const MODES: TournamentMode[] = ["FFA", "2vs2", "3vs3", "4vs4", "5vs5", "6vs6"];
+const MODES: TournamentMode[] = ["FFA", "FFA KO", "2vs2", "2v2 GP", "3vs3", "4vs4", "5vs5", "6vs6"];
 const MAX_PLAYER_ROWS = 12;
 const MAX_PLAYERS_BY_MODE: Record<TournamentMode, number> = {
   FFA: 12,
+  "FFA KO": 12,
   "2vs2": 12,
+  "2v2 GP": 12,
   "3vs3": 12,
   "4vs4": 12,
   "5vs5": 10,
@@ -47,13 +49,15 @@ function getNameSuggestions(playerNames: string[], value: string): string[] {
 }
 
 function getTeamClassName(mode: TournamentMode, playerIndex: number): string {
-  if (mode === "FFA") {
+  if (mode === "FFA" || mode === "FFA KO") {
     return "";
   }
 
   const teamSizeMap: Record<TournamentMode, number> = {
     FFA: 1,
+    "FFA KO": 1,
     "2vs2": 2,
+    "2v2 GP": 2,
     "3vs3": 3,
     "4vs4": 4,
     "5vs5": 5,
@@ -80,7 +84,8 @@ function buildSheetsPayload(tournament: TournamentResponse): SheetsUpdateRequest
       name: player.name,
       score: player.score,
       new_mmr: player.new_mmr,
-      mmr_change: player.mmr_change
+      mmr_change: player.mmr_change,
+      is_rated: player.is_rated
     }))
   };
 }
@@ -96,9 +101,9 @@ function isTournamentMode(value: string): value is TournamentMode {
 }
 
 function buildPlayerRows(players: Array<Partial<PlayerEntry>>, maxRows: number): PlayerEntry[] {
-  const importedRows = players.slice(0, maxRows).map((player) => ({
+  const importedRows: PlayerEntry[] = players.slice(0, maxRows).map((player) => ({
     name: typeof player.name === "string" ? player.name : "",
-    score: typeof player.score === "number" ? player.score : "",
+    score: player.score === "" || typeof player.score === "number" ? player.score : "",
     mii_data: typeof player.mii_data === "string" ? player.mii_data : ""
   }));
 
@@ -422,7 +427,7 @@ export function AppPage() {
                 <textarea
                   value={importJson}
                   onChange={(event) => setImportJson(event.target.value)}
-                  placeholder='Paste JSON like example_process.json here'
+                  placeholder='Paste exported JSON table here...'
                   rows={6}
                 />
               </label>

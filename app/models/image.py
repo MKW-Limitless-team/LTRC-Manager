@@ -14,6 +14,7 @@ class PlayerResult(BaseModel):
     score: int = Field(..., description="Player score")
     mmr_change: int = Field(..., description="MMR change for this tournament")
     new_mmr: int = Field(..., description="New MMR after this tournament")
+    is_rated: bool = Field(True, description="Whether the player is rated after this event")
     mii_data: Optional[str] = Field(None, description="Base64-encoded Mii data")
 
 class ImageGenerationRequest(BaseModel):

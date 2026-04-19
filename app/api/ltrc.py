@@ -204,7 +204,7 @@ async def get_processing_status(user=Depends(require_authorized_user)):
             "locked_by": locked_by,
             "last_processed": datetime.now(),
             "active_instances": 1,
-            "supported_formats": ["FFA", "2vs2", "3vs3", "4vs4", "5vs5", "6vs6"]
+            "supported_formats": ["FFA", "FFA KO", "2vs2", "2v2 GP", "3vs3", "4vs4", "5vs5", "6vs6"]
         }
         
     except Exception as e:
