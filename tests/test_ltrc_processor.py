@@ -198,3 +198,11 @@ def test_2v2_gp_rankings_and_team_deltas_match_2vs2(tmp_path):
     assert rankings == [1, 1, 2, 2]
     assert mmr_changes[0] == mmr_changes[1]
     assert mmr_changes[2] == mmr_changes[3]
+
+
+def test_ffa_ko_rankings_use_scores_and_allow_ties(tmp_path):
+    processor = build_processor(tmp_path)
+
+    rankings = processor._find_rankings([6, 6, 4, 2], "FFA KO")
+
+    assert rankings == [1, 1, 3, 4]

@@ -30,6 +30,7 @@ class SavedImageRequest(BaseModel):
     event_id: str = Field(..., description="Processed event identifier")
     subtitle: Optional[str] = Field(None, description="Optional subtitle override")
     title: Optional[str] = Field(None, description="Optional title override")
+    persist: bool = Field(False, description="Whether to persist the generated image to disk")
 
 
 class ImageGenerationResponse(BaseModel):

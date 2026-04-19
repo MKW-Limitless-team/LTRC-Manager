@@ -58,6 +58,7 @@ class ImageGenerator:
         # Format specific configurations
         self.format_config = self.config['formats'][self.format_type]
         self.header_config = self.format_config['header']
+        self.legend_config = self.header_config.get('legend')
         self.podium_style = self.format_config['podium_style']
         self.podium_count = self.format_config['podium_count']
         self.team_size = self.format_config['team_size']
@@ -135,6 +136,30 @@ class ImageGenerator:
         """Get the path to a direction icon file"""
         return os.path.join(self.rank_icons_dir, f"{direction}.png")
 
+    def _load_image_with_height(self, source, target_height):
+        """Load an image and resize its visible pixels to a target height while preserving aspect ratio."""
+        img = self._load_image(source)
+        if not img:
+            return None
+
+        if target_height <= 0 or img.height <= 0:
+            return img
+
+        alpha_channel = img.getchannel("A")
+        visible_bounds = alpha_channel.getbbox()
+        if visible_bounds:
+            img = img.crop(visible_bounds)
+
+        if img.height <= 0:
+            return img
+
+        scale = target_height / img.height
+        target_width = max(1, int(round(img.width * scale)))
+        if img.size == (target_width, target_height):
+            return img
+
+        return img.resize((target_width, target_height))
+
     def _create_base_image(self):
         """Create the base image with background"""
         # Check if background image is specified
@@ -198,8 +223,36 @@ class ImageGenerator:
         # Draw main subtitle text
         draw.text((subtitle_x, subtitle_y), subtitle, 
                     fill=self.header_config['subtitle_color'], font=subtitle_font)
+
+        self._render_legend(img, draw)
         
         return img
+
+    def _render_legend(self, img, draw):
+        """Render the configurable top-right legend."""
+        if not self.legend_config:
+            return
+
+        legend_text = self.legend_config.get("text", "").strip()
+        if not legend_text:
+            return
+
+        legend_size = self.legend_config.get("size", self.header_config["subtitle_size"])
+        legend_color = self.legend_config.get("color", "#B0B0B0")
+        legend_font = ImageFont.truetype(self.font_file, legend_size)
+        legend_x = self.legend_config.get("x", self.width - 40)
+        legend_y = self.legend_config.get("y", self.header_config["subtitle_y"])
+        align = self.legend_config.get("align", "right")
+
+        text_width = draw.textlength(legend_text, font=legend_font)
+        if align == "center":
+            draw_x = legend_x - (text_width // 2)
+        elif align == "left":
+            draw_x = legend_x
+        else:
+            draw_x = legend_x - text_width
+
+        draw.text((draw_x, legend_y), legend_text, fill=legend_color, font=legend_font)
 
     def _draw_mii(self, img, mii_data, x_pos, y_pos, mii_size):
         """
@@ -386,14 +439,15 @@ class ImageGenerator:
         player_score = player_data["score"]
         mmr_change = player_data["mmr_change"]
         new_mmr = player_data["new_mmr"]
+        old_mmr = player_data.get("old_mmr", new_mmr - mmr_change)
         is_rated = player_data.get("is_rated", True)
         is_top_mmr = player_data.get("is_top_mmr", False)
         old_is_top_mmr = player_data.get("old_is_top_mmr", False)
+        just_placed = old_mmr < 0 and is_rated
         # Determine rank based on MMR
         rank = self._determine_rank_from_mmr(new_mmr, is_rated=is_rated, is_top_mmr=is_top_mmr)
         
         # Determine rank change by comparing new rank with old rank
-        old_mmr = new_mmr - mmr_change
         old_rank = self._determine_rank_from_mmr(old_mmr, is_rated=is_rated, is_top_mmr=old_is_top_mmr)
         
         # Determine rank change direction
@@ -412,7 +466,7 @@ class ImageGenerator:
         score_text = f"{player_score}"
         mmr_text = f"{mmr_prefix}{mmr_change}"
         
-        new_mmr_text = f"{new_mmr}"
+        new_mmr_text = "???" if not is_rated else f"{new_mmr}"
         
         # Calculate MMR color
         mmr_color = self.colors['mmr_up'] if mmr_change >= 0 else self.colors['mmr_down']
@@ -421,7 +475,10 @@ class ImageGenerator:
         direction_icon = None
         direction_tint = None
         
-        if rank_change > 0:
+        if just_placed:
+            direction_path = self._get_direction_icon_path("right")
+            direction_tint = None
+        elif rank_change > 0:
             direction_path = self._get_direction_icon_path("up")
             direction_tint = self.colors['mmr_up']
         elif rank_change < 0:
@@ -437,13 +494,12 @@ class ImageGenerator:
         
         # Get rank icon path and load it
         rank_icon = None
-        rank_icon_size = (stats_size, stats_size)
         rank_icon_path = self._get_rank_icon_path(rank)
-        rank_icon = self._load_image(rank_icon_path, rank_icon_size)
+        rank_icon = self._load_image_with_height(rank_icon_path, stats_size)
         
         # Calculate icon sizes
         rank_change_icon_size = (stats_size - 5, stats_size - 5)
-        rank_icon_size = (stats_size, stats_size)
+        rank_icon_size = rank_icon.size if rank_icon else (0, 0)
         
         # Build stats text to calculate width for centering
         full_stats_text = f"{score_text}{separator}{mmr_text}{separator}{new_mmr_text}"

@@ -555,6 +555,8 @@ class LTRCProcessor:
                 "new_mmr": player["new_mmr"],
                 "mmr_change": player["mmr_change"],
                 "is_rated": player.get("is_rated", True),
+                "boosted": player.get("tracked_event_count", 0) < 3,
+                "bonus": 0,
                 "mii_data": player["mii_data"] if "mii_data" in player else ""
             }
 

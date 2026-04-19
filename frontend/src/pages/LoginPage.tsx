@@ -29,7 +29,9 @@ export function LoginPage() {
           <div className="error-banner">
             {error === "not_allowed"
               ? "You are not authorised to use LTRC Manager. Contact Blazico if this is a mistake."
-              : "Login could not be completed."}
+              : error === "session_expired"
+                ? "Your session expired or was not sent with the request. Please log in again."
+                : "Login could not be completed."}
           </div>
         ) : null}
         <div className="auth-actions">

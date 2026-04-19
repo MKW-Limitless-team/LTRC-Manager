@@ -16,6 +16,7 @@ class SheetsUpdateResult(BaseModel):
     new_mmr: int = Field(..., description="Player's MMR after the tournament")
     mmr_change: int = Field(..., description="MMR change (positive or negative)")
     is_rated: bool = Field(True, description="Whether this MMR should be written back to Playerdata")
+    bonus: int = Field(0, description="Manual MMR adjustment applied by an admin")
 
 
 class SheetsUpdateRequest(BaseModel):

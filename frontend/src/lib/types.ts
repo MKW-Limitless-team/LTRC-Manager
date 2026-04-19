@@ -28,6 +28,8 @@ export interface TournamentResult {
   new_mmr: number;
   mmr_change: number;
   is_rated: boolean;
+  boosted: boolean;
+  bonus: number;
   mii_data: string;
 }
 
@@ -56,6 +58,7 @@ export interface SavedImageRequest {
   event_id: string;
   subtitle?: string;
   title?: string;
+  persist?: boolean;
 }
 
 export interface SheetsUpdateResult {
@@ -64,6 +67,7 @@ export interface SheetsUpdateResult {
   new_mmr: number;
   mmr_change: number;
   is_rated: boolean;
+  bonus: number;
 }
 
 export interface SheetsUpdateRequest {

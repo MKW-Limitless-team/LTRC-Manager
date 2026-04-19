@@ -85,7 +85,19 @@ function buildSheetsPayload(tournament: TournamentResponse): SheetsUpdateRequest
       score: player.score,
       new_mmr: player.new_mmr,
       mmr_change: player.mmr_change,
-      is_rated: player.is_rated
+      is_rated: player.is_rated,
+      bonus: player.bonus
+    }))
+  };
+}
+
+function applyBonuses(tournament: TournamentResponse): TournamentResponse {
+  return {
+    ...tournament,
+    results: tournament.results.map((player) => ({
+      ...player,
+      mmr_change: player.mmr_change + player.bonus,
+      new_mmr: player.new_mmr + player.bonus
     }))
   };
 }
@@ -149,6 +161,10 @@ export function AppPage() {
   const [workflowError, setWorkflowError] = useState<string | null>(null);
   const [activeAutocompleteIndex, setActiveAutocompleteIndex] = useState<number | null>(null);
   const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState<number>(0);
+  const adjustedTournament = useMemo(
+    () => (tournament ? applyBonuses(tournament) : null),
+    [tournament]
+  );
 
   useEffect(() => {
     return () => {
@@ -194,7 +210,19 @@ export function AppPage() {
   });
 
   const writeMutation = useMutation({
-    mutationFn: updateSheets,
+    mutationFn: async (payload: { tournament: TournamentResponse; persistImage: boolean; subtitle: string }) => {
+      const savedTournament = await saveTournamentResults(payload.tournament);
+
+      if (payload.persistImage) {
+        await generateImage({
+          event_id: savedTournament.event_id,
+          subtitle: payload.subtitle,
+          persist: true
+        });
+      }
+
+      return updateSheets(buildSheetsPayload(savedTournament));
+    },
     onSuccess: () => {
       setWorkflowError(null);
       setStep("done");
@@ -208,15 +236,6 @@ export function AppPage() {
       await queryClient.invalidateQueries({ queryKey: ["session"] });
     }
   });
-  const saveResultsMutation = useMutation({
-    mutationFn: saveTournamentResults,
-    onSuccess: () => {
-      setWorkflowError(null);
-      setStep("image");
-    },
-    onError: (error: Error) => setWorkflowError(error.message)
-  });
-
   const headerTitle = useMemo(() => {
     const titleBits = [];
     if (form.options["32track"]) titleBits.push("32 Track");
@@ -261,8 +280,7 @@ export function AppPage() {
     processMutation.isPending ||
     imageMutation.isPending ||
     writeMutation.isPending ||
-    logoutMutation.isPending ||
-    saveResultsMutation.isPending;
+    logoutMutation.isPending;
 
   const resetWorkflow = () => {
     if (imageUrl) {
@@ -277,6 +295,23 @@ export function AppPage() {
       players: Array.from({ length: MAX_PLAYER_ROWS }, createEmptyPlayer)
     }));
     setStep("setup");
+  };
+
+  const updatePlayerBonus = (playerKey: string, bonusValue: number) => {
+    setTournament((current) => {
+      if (!current) {
+        return current;
+      }
+
+      return {
+        ...current,
+        results: current.results.map((player) =>
+          `${player.name}-${player.ranking}` === playerKey
+            ? { ...player, bonus: bonusValue }
+            : player
+        )
+      };
+    });
   };
 
   const updatePlayer = (index: number, patch: Partial<PlayerEntry>) => {
@@ -624,7 +659,7 @@ export function AppPage() {
         </section>
       ) : null}
 
-      {step === "review" && tournament ? (
+      {step === "review" && tournament && adjustedTournament ? (
         <section className="panel workflow-panel">
           <div className="panel-heading">
             <div>
@@ -642,43 +677,65 @@ export function AppPage() {
                   <th>Rank</th>
                   <th>Score</th>
                   <th>MMR</th>
+                  <th>Boosted</th>
+                  <th>Bonus</th>
                   <th>Change</th>
                   <th>New Rating</th>
                 </tr>
               </thead>
               <tbody>
-                {tournament.results.map((player) => (
-                  <tr key={`${player.name}-${player.ranking}`}>
-                    <td>{player.name}</td>
-                    <td>{player.ranking}</td>
-                    <td>{player.score}</td>
-                    <td>{player.old_mmr < 0 ? "???" : player.old_mmr}</td>
-                    <td className={player.mmr_change >= 0 ? "positive" : "negative"}>
-                      {player.mmr_change >= 0 ? `+${player.mmr_change}` : player.mmr_change}
-                    </td>
-                    <td>{player.new_mmr}</td>
-                  </tr>
-                ))}
+                {adjustedTournament.results.map((player, index) => {
+                  const originalPlayer = tournament.results[index];
+                  const playerKey = `${player.name}-${player.ranking}`;
+
+                  return (
+                    <tr key={playerKey}>
+                      <td>{player.name}</td>
+                      <td>{player.ranking}</td>
+                      <td>{player.score}</td>
+                      <td>{player.old_mmr < 0 ? "???" : player.old_mmr}</td>
+                      <td>{player.boosted ? "Yes" : "No"}</td>
+                      <td>
+                        <input
+                          type="number"
+                          value={originalPlayer.bonus}
+                          onFocus={(event) => event.target.select()}
+                          onChange={(event) =>
+                            updatePlayerBonus(
+                              playerKey,
+                              event.target.value === "" ? 0 : Number(event.target.value)
+                            )
+                          }
+                          placeholder="0"
+                        />
+                      </td>
+                      <td className={player.mmr_change >= 0 ? "positive" : "negative"}>
+                        {player.mmr_change >= 0 ? `+${player.mmr_change}` : player.mmr_change}
+                      </td>
+                      <td>{player.new_mmr}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           <div className="action-row">
-            <button className="ghost-button" onClick={resetWorkflow}>
-              Refresh
+            <button className="ghost-button" onClick={() => setStep("setup")}>
+              Back
             </button>
             <button
               className="primary-button"
               disabled={isBusy}
-              onClick={() => tournament && saveResultsMutation.mutate(tournament)}
+              onClick={() => setStep("image")}
             >
-              {saveResultsMutation.isPending ? "Saving Results..." : "Continue"}
+              Continue
             </button>
           </div>
         </section>
       ) : null}
 
-      {step === "image" && tournament ? (
+      {step === "image" && adjustedTournament ? (
         <section className="panel workflow-panel">
           <div className="panel-heading">
             <div>
@@ -702,13 +759,16 @@ export function AppPage() {
           </p>
 
           <div className="action-row">
+            <button className="ghost-button" onClick={() => setStep("review")}>
+              Back
+            </button>
             <button className="ghost-button" onClick={() => setStep("write")}>
               Skip Image Generation
             </button>
             <button
               className="primary-button"
               disabled={isBusy}
-              onClick={() => imageMutation.mutate({ event_id: tournament.event_id, subtitle: autoSubtitle })}
+              onClick={() => imageMutation.mutate({ event_id: adjustedTournament.event_id, subtitle: autoSubtitle })}
             >
               {imageMutation.isPending ? "Generating Image..." : "Generate Image"}
             </button>
@@ -716,7 +776,7 @@ export function AppPage() {
         </section>
       ) : null}
 
-      {step === "write" && tournament ? (
+      {step === "write" && adjustedTournament ? (
         <section className="panel workflow-panel">
           <div className="panel-heading">
             <div>
@@ -730,7 +790,7 @@ export function AppPage() {
             <div className="image-preview-card">
               <img className="image-preview" src={imageUrl} alt="Generated tournament result" />
               <div className="action-row">
-                <a className="ghost-button link-button" href={imageUrl} download={`${tournament.event_id}.png`}>
+                <a className="ghost-button link-button" href={imageUrl} download={`${adjustedTournament.event_id}.png`}>
                   Download Image
                 </a>
               </div>
@@ -748,7 +808,13 @@ export function AppPage() {
             <button
               className="primary-button"
               disabled={isBusy}
-              onClick={() => writeMutation.mutate(buildSheetsPayload(tournament))}
+              onClick={() =>
+                writeMutation.mutate({
+                  tournament: adjustedTournament,
+                  persistImage: Boolean(imageUrl),
+                  subtitle: autoSubtitle
+                })
+              }
             >
               {writeMutation.isPending ? "Writing To Sheets..." : "Write"}
             </button>
@@ -761,9 +827,14 @@ export function AppPage() {
           <p className="eyebrow">Step 5</p>
           <h2>Sheet Updated Successfully</h2>
           <p className="support-copy">The run is complete. You can start again immediately from the browser.</p>
-          <button className="primary-button" onClick={resetWorkflow}>
-            Restart
-          </button>
+          <div className="action-row">
+            <button className="ghost-button" onClick={() => setStep("write")}>
+              Back
+            </button>
+            <button className="primary-button" onClick={resetWorkflow}>
+              Restart
+            </button>
+          </div>
         </section>
       ) : null}
     </main>

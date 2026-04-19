@@ -56,6 +56,8 @@ class TournamentResult(BaseModel):
     new_mmr: int = Field(..., description="Player's MMR after the tournament")
     mmr_change: int = Field(..., description="MMR change (can be negative)")
     is_rated: bool = Field(..., description="Whether the player's resulting MMR should be persisted")
+    boosted: bool = Field(..., description="Whether the player's first-three-events boost applied")
+    bonus: int = Field(0, description="Manual MMR adjustment applied by an admin")
     mii_data: str = Field(..., description="Base64-encoded Mii image data")
 
 

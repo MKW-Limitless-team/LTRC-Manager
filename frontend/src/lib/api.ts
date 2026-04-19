@@ -32,6 +32,19 @@ function resolveApiBaseUrl(): string {
 
 const API_BASE_URL = resolveApiBaseUrl();
 
+function normaliseAppBasePath(value: string): string {
+  if (!value || value === "/") {
+    return "";
+  }
+  return value.endsWith("/") ? value.slice(0, -1) : value;
+}
+
+function redirectToLogin(error: string): never {
+  const loginPath = `${normaliseAppBasePath(APP_BASE_PATH)}/login?error=${encodeURIComponent(error)}`;
+  window.location.assign(loginPath || `/login?error=${encodeURIComponent(error)}`);
+  throw new Error("Authentication required");
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     credentials: "include",
@@ -45,6 +58,9 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
     const message = payload?.message ?? payload?.detail ?? "Request failed";
+    if (response.status === 401) {
+      redirectToLogin("session_expired");
+    }
     throw new Error(message);
   }
 
@@ -109,6 +125,9 @@ export async function generateImage(data: SavedImageRequest): Promise<Blob> {
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
     const message = payload?.message ?? payload?.detail ?? "Image generation failed";
+    if (response.status === 401) {
+      redirectToLogin("session_expired");
+    }
     throw new Error(message);
   }
 

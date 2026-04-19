@@ -78,6 +78,8 @@ def test_tournament_response_supports_rankings_and_options():
                 new_mmr=4310,
                 mmr_change=110,
                 is_rated=True,
+                boosted=True,
+                bonus=0,
                 mii_data="",
             )
         ],
@@ -92,7 +94,16 @@ def test_tournament_response_supports_rankings_and_options():
 def test_sheets_models_validate():
     request = SheetsUpdateRequest(
         event_id="LTRC_S1E1",
-        results=[SheetsUpdateResult(name="Player1", score=120, new_mmr=4300, mmr_change=100, is_rated=True)],
+        results=[
+            SheetsUpdateResult(
+                name="Player1",
+                score=120,
+                new_mmr=4300,
+                mmr_change=100,
+                is_rated=True,
+                bonus=0,
+            )
+        ],
     )
     response = SheetsUpdateResponse(
         success=True,

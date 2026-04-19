@@ -1,11 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from typing import Dict, Any
 import io
 import json
 import os
 
-from app.auth.dependencies import require_authorized_user
 from app.models.image import SavedImageRequest
 from app.services.ltrc_processor import LTRCProcessor
 from app.services.image_generator import ImageGenerator
@@ -44,6 +43,22 @@ def _load_saved_tournament(event_id: str) -> Dict[str, Any]:
         return json.load(f)
 
 
+def _load_tournament_for_render(event_id: str) -> Dict[str, Any]:
+    try:
+        return _load_saved_tournament(event_id)
+    except HTTPException as exc:
+        if exc.status_code != 404:
+            raise
+
+    from app.api.ltrc import tournament_storage
+
+    staged_entry = tournament_storage.get(event_id)
+    if staged_entry and staged_entry.get("response"):
+        return staged_entry["response"]
+
+    raise HTTPException(status_code=404, detail=f"Results not found for event {event_id}")
+
+
 def _build_title(mode: str, options: Dict[str, Any] | None) -> str:
     options = options or {}
     title_parts = []
@@ -66,7 +81,7 @@ def _get_ascendant_holders(mmr_snapshot: Dict[str, int]) -> set[str]:
         return set()
 
     highest_mmr = max(mmr_snapshot.values())
-    if highest_mmr <= 3000:
+    if highest_mmr <= 8000:
         return set()
 
     return {
@@ -105,8 +120,13 @@ def _annotate_overall_ascendant_flags(players: list[Dict[str, Any]]) -> list[Dic
     return annotated_players
 
 
-def _render_saved_image(event_id: str, subtitle: str | None = None, title: str | None = None):
-    results_data = _load_saved_tournament(event_id)
+def _render_saved_image(
+    event_id: str,
+    subtitle: str | None = None,
+    title: str | None = None,
+    persist: bool = False,
+):
+    results_data = _load_tournament_for_render(event_id)
 
     format_type = results_data.get("mode")
     event_date = results_data.get("event_date", "")
@@ -119,7 +139,8 @@ def _render_saved_image(event_id: str, subtitle: str | None = None, title: str |
 
     image_gen = get_image_generator(format_type)
     title_text = title or _build_title(format_type, results_data.get("options"))
-    image = image_gen.generate_or_retrieve(
+    render_fn = image_gen.generate_or_retrieve if persist else image_gen.generate
+    image = render_fn(
         results=_annotate_overall_ascendant_flags([
             {
                 "name": player["name"],
@@ -146,7 +167,6 @@ def _render_saved_image(event_id: str, subtitle: str | None = None, title: str |
 @router.get("/generate/{event_id}", response_class=StreamingResponse, summary="Generate tournament result image")
 async def generate_image(
     event_id: str,
-    user=Depends(require_authorized_user),
 ):
     """
     Generate or retrieve tournament result image from saved results.
@@ -183,10 +203,14 @@ async def generate_image(
 @router.post("/generate", response_class=StreamingResponse, summary="Generate tournament result image with custom subtitle")
 async def generate_image_with_custom_text(
     request: SavedImageRequest,
-    user=Depends(require_authorized_user),
 ):
     try:
-        img_buffer = _render_saved_image(request.event_id, subtitle=request.subtitle, title=request.title)
+        img_buffer = _render_saved_image(
+            request.event_id,
+            subtitle=request.subtitle,
+            title=request.title,
+            persist=request.persist,
+        )
         return StreamingResponse(
             img_buffer,
             media_type="image/png",
