@@ -6,7 +6,7 @@ services:
     env_file:
       - .env
     environment:
-      FRONTEND_BASE_URL: http://localhost:8080/LTRC-manager
+      FRONTEND_BASE_URL: http://localhost:8080/ltrc-manager
       CORS_ALLOWED_ORIGINS: http://localhost:8080
     ports:
       - "127.0.0.1:8000:8000"
@@ -21,7 +21,7 @@ services:
       dockerfile: frontend.Dockerfile
       args:
         VITE_API_BASE_URL: ""
-        VITE_APP_BASE_PATH: "/LTRC-manager/"
+        VITE_APP_BASE_PATH: "/ltrc-manager/"
     depends_on:
       - backend
     ports:

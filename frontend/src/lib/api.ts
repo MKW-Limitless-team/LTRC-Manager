@@ -8,6 +8,7 @@ import type {
 } from "./types";
 
 const APP_BASE_PATH = import.meta.env.VITE_APP_BASE_PATH ?? "";
+const NORMALISED_APP_BASE_PATH = normaliseAppBasePath(APP_BASE_PATH);
 
 function normaliseBaseUrl(value: string): string {
   if (!value) {
@@ -40,13 +41,21 @@ function normaliseAppBasePath(value: string): string {
 }
 
 function redirectToLogin(error: string): never {
-  const loginPath = `${normaliseAppBasePath(APP_BASE_PATH)}/login?error=${encodeURIComponent(error)}`;
+  const loginPath = `${NORMALISED_APP_BASE_PATH}/login?error=${encodeURIComponent(error)}`;
   window.location.assign(loginPath || `/login?error=${encodeURIComponent(error)}`);
   throw new Error("Authentication required");
 }
 
+function buildApiPath(path: string): string {
+  if (API_BASE_URL) {
+    return `${API_BASE_URL}${path}`;
+  }
+
+  return `${NORMALISED_APP_BASE_PATH}${path}`;
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(buildApiPath(path), {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
@@ -72,7 +81,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function getLoginUrl(): string {
-  return `${API_BASE_URL}/auth/login`;
+  return buildApiPath("/auth/login");
 }
 
 export function getSessionState(): Promise<SessionState> {
@@ -113,7 +122,7 @@ export function updateSheets(data: SheetsUpdateRequest): Promise<SheetsUpdateRes
 }
 
 export async function generateImage(data: SavedImageRequest): Promise<Blob> {
-  const response = await fetch(`${API_BASE_URL}/ltrc/images/generate`, {
+  const response = await fetch(buildApiPath("/ltrc/images/generate"), {
     method: "POST",
     credentials: "include",
     headers: {
