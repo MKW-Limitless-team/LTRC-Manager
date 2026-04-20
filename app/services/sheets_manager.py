@@ -116,6 +116,16 @@ class SheetsManager:
             logger.error(f"Error updating Google Sheets: {str(e)}")
             raise
 
+    def _normalise_result(self, result: Any) -> Dict[str, Any]:
+        """Accept either a plain dict or a Pydantic model result."""
+        if isinstance(result, dict):
+            return result
+        if hasattr(result, "model_dump"):
+            return result.model_dump()
+        if hasattr(result, "dict"):
+            return result.dict()
+        raise TypeError(f"Unsupported result type for sheets update: {type(result)!r}")
+
     def is_locked(self) -> bool:
         """Compatibility hook for the API. Sheets updates are currently unlocked."""
         return False
@@ -135,11 +145,13 @@ class SheetsManager:
             
             # Write each player's new MMR back to the sheet.
             for result in results:
-                if not result.get("is_rated", True):
+                result_data = self._normalise_result(result)
+
+                if not result_data.get("is_rated", True):
                     continue
 
-                player_name = result["name"]
-                new_mmr = result["new_mmr"]
+                player_name = result_data["name"]
+                new_mmr = result_data["new_mmr"]
                 
                 # Find the player in the player data sheet.
                 cell = self.Playerdata.find(player_name, case_sensitive=False)

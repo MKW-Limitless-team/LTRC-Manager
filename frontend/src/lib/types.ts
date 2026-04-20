@@ -73,6 +73,10 @@ export interface SheetsUpdateResult {
 export interface SheetsUpdateRequest {
   event_id: string;
   results: SheetsUpdateResult[];
+  tournament?: TournamentResponse;
+  persist_image?: boolean;
+  subtitle?: string;
+  title?: string;
 }
 
 export interface SheetsUpdateResponse {

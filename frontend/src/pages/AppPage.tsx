@@ -2,10 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 
-import { generateImage, getNextEventId, getPlayerNames, getSessionState, logout, processWorkflow, saveTournamentResults, updateSheets } from "../lib/api";
+import { generateImage, getNextEventId, getPlayerNames, getSessionState, logout, processWorkflow, updateSheets } from "../lib/api";
 import type {
   PlayerEntry,
-  SheetsUpdateRequest,
   TournamentMode,
   TournamentResponse,
   WorkflowProcessRequest
@@ -75,20 +74,6 @@ function todayAsDdMmYyyy(): string {
   const month = `${now.getMonth() + 1}`.padStart(2, "0");
   const year = now.getFullYear();
   return `${day}-${month}-${year}`;
-}
-
-function buildSheetsPayload(tournament: TournamentResponse): SheetsUpdateRequest {
-  return {
-    event_id: tournament.event_id,
-    results: tournament.results.map((player) => ({
-      name: player.name,
-      score: player.score,
-      new_mmr: player.new_mmr,
-      mmr_change: player.mmr_change,
-      is_rated: player.is_rated,
-      bonus: player.bonus
-    }))
-  };
 }
 
 function applyBonuses(tournament: TournamentResponse): TournamentResponse {
@@ -211,17 +196,20 @@ export function AppPage() {
 
   const writeMutation = useMutation({
     mutationFn: async (payload: { tournament: TournamentResponse; persistImage: boolean; subtitle: string }) => {
-      const savedTournament = await saveTournamentResults(payload.tournament);
-
-      if (payload.persistImage) {
-        await generateImage({
-          event_id: savedTournament.event_id,
-          subtitle: payload.subtitle,
-          persist: true
-        });
-      }
-
-      return updateSheets(buildSheetsPayload(savedTournament));
+      return updateSheets({
+        event_id: payload.tournament.event_id,
+        results: payload.tournament.results.map((player) => ({
+          name: player.name,
+          score: player.score,
+          new_mmr: player.new_mmr,
+          mmr_change: player.mmr_change,
+          is_rated: player.is_rated,
+          bonus: player.bonus
+        })),
+        tournament: payload.tournament,
+        persist_image: payload.persistImage,
+        subtitle: payload.subtitle
+      });
     },
     onSuccess: () => {
       setWorkflowError(null);

@@ -570,7 +570,19 @@ class LTRCProcessor:
     def record_event_history(self, event_id: str, results: List[Dict[str, Any]]) -> None:
         """Persist tracked-event history once a tournament is finally written."""
         event_history = self._load_event_history()
-        history_players = [{"name": result["name"]} for result in results]
+        history_players = []
+        for result in results:
+            if isinstance(result, dict):
+                history_players.append({"name": result["name"]})
+            elif hasattr(result, "model_dump"):
+                result_data = result.model_dump()
+                history_players.append({"name": result_data["name"]})
+            elif hasattr(result, "dict"):
+                result_data = result.dict()
+                history_players.append({"name": result_data["name"]})
+            else:
+                raise TypeError(f"Unsupported result type for event history: {type(result)!r}")
+
         self._record_tournament_participation(event_history, event_id, history_players)
         self._save_event_history(event_history)
 

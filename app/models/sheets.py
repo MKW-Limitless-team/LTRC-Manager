@@ -8,6 +8,8 @@ from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field
 
+from app.models.ltrc import TournamentResponse
+
 
 class SheetsUpdateResult(BaseModel):
     """Individual tournament result for sheets update"""
@@ -23,6 +25,10 @@ class SheetsUpdateRequest(BaseModel):
     """Google Sheets update request model"""
     event_id: str = Field(..., description="Unique event identifier")
     results: List[SheetsUpdateResult] = Field(..., description="List of tournament results to update")
+    tournament: TournamentResponse | None = Field(None, description="Optional final tournament payload to persist after sheet write")
+    persist_image: bool = Field(False, description="Whether to persist the generated image after sheet write")
+    subtitle: str | None = Field(None, description="Optional subtitle for persisted image")
+    title: str | None = Field(None, description="Optional title override for persisted image")
 
 
 class SheetsUpdateResponse(BaseModel):

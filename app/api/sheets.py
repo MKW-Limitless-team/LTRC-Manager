@@ -10,6 +10,7 @@ from app.auth.dependencies import require_authorized_user
 from app.services.sheets_manager import SheetsManager
 from app.services.ltrc_processor import LTRCProcessor
 from app.utils.logging import get_logger
+from app.api.ltrc import _persist_tournament_response, tournament_storage
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -60,10 +61,30 @@ async def update_google_sheets(
             results=request.results
         )
 
-        get_ltrc_processor().record_event_history(
-            event_id=request.event_id,
-            results=request.results,
-        )
+        if request.tournament is not None:
+            staged_entry = tournament_storage.get(request.event_id)
+            request_payload = staged_entry.get("request", {}) if staged_entry else {}
+            tournament_storage[request.event_id] = {
+                "request": request_payload,
+                "response": request.tournament.model_dump(),
+            }
+
+            _persist_tournament_response(request.tournament, request_payload=request_payload)
+
+            if request.persist_image:
+                from app.api.images import _render_saved_image
+
+                _render_saved_image(
+                    request.event_id,
+                    subtitle=request.subtitle,
+                    title=request.title,
+                    persist=True,
+                )
+
+            get_ltrc_processor().record_event_history(
+                event_id=request.event_id,
+                results=request.results,
+            )
         
         logger.info(f"Google Sheets updated successfully for event: {request.event_id}")
         return result

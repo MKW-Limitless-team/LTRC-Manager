@@ -283,7 +283,7 @@ class ImageGenerator:
                 return None
             
             # Construct API URL with mii_data parameter and hardcoded expression/cameraYRotate
-            api_url = f"{self.mii_api_base}?data={mii_data}&expression=normal&cameraYRotate=30"
+            api_url = f"{self.mii_api_base}?data={mii_data}&expression=normal&shaderType=switch&cameraYRotate=330"
             
             # Make request to Mii renderer API
             response = self.session.get(api_url, timeout=self.request_timeout)
