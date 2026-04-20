@@ -438,9 +438,6 @@ class LTRCProcessor:
                 "event_date": event_date
             }
 
-            self._record_tournament_participation(event_history, event_id, players)
-            self._save_event_history(event_history)
-            
             logger.info(f"Tournament processed successfully: {response['event_id']}")
             return response
             
@@ -569,6 +566,13 @@ class LTRCProcessor:
         import time
         timestamp = int(time.time())
         return f"LTRC_S1E{timestamp}"
+
+    def record_event_history(self, event_id: str, results: List[Dict[str, Any]]) -> None:
+        """Persist tracked-event history once a tournament is finally written."""
+        event_history = self._load_event_history()
+        history_players = [{"name": result["name"]} for result in results]
+        self._record_tournament_participation(event_history, event_id, history_players)
+        self._save_event_history(event_history)
 
     def get_next_event_id(self, season_number: int = 5) -> str:
         """Return the next sequential event ID for the given season."""

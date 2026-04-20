@@ -106,12 +106,7 @@ def test_non_placement_modes_use_2000_seed_and_keep_players_unrated(tmp_path):
     assert [player["is_rated"] for player in result["results"]] == [False, False]
     assert all(isinstance(player["mmr_change"], int) for player in result["results"])
     assert all(isinstance(player["new_mmr"], int) for player in result["results"])
-
-    with open(processor.event_history_path, "r") as history_file:
-        saved_history = json.load(history_file)
-
-    assert saved_history["playerone"]["events_played"] == 1
-    assert saved_history["playertwo"]["events_played"] == 1
+    assert not tmp_path.joinpath("player_event_history.json").exists()
 
 
 def test_standard_modes_still_rate_unranked_players_from_placement_seed(tmp_path):
@@ -206,3 +201,30 @@ def test_ffa_ko_rankings_use_scores_and_allow_ties(tmp_path):
     rankings = processor._find_rankings([6, 6, 4, 2], "FFA KO")
 
     assert rankings == [1, 1, 3, 4]
+
+
+def test_event_history_is_only_persisted_on_final_write(tmp_path):
+    processor = build_processor(tmp_path)
+    stub_sheet_dependencies(processor, {"PlayerOne": 2500, "PlayerTwo": 2400})
+
+    result = processor.process_tournament(
+        event_id="LTRC_S1E14",
+        mode="FFA",
+        players=[
+            {"name": "PlayerOne", "score": 120, "mii_data": ""},
+            {"name": "PlayerTwo", "score": 100, "mii_data": ""},
+        ],
+        options={"32track": False, "200cc": False},
+        event_date="19-04-2026",
+    )
+
+    assert not tmp_path.joinpath("player_event_history.json").exists()
+
+    processor.record_event_history("LTRC_S1E14", result["results"])
+    processor.record_event_history("LTRC_S1E14", result["results"])
+
+    with open(processor.event_history_path, "r") as history_file:
+        saved_history = json.load(history_file)
+
+    assert saved_history["playerone"]["events_played"] == 1
+    assert saved_history["playertwo"]["events_played"] == 1

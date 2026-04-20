@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from app.models.sheets import SheetsUpdateRequest, SheetsUpdateResponse
 from app.auth.dependencies import require_authorized_user
 from app.services.sheets_manager import SheetsManager
+from app.services.ltrc_processor import LTRCProcessor
 from app.utils.logging import get_logger
 
 router = APIRouter()
@@ -17,6 +18,11 @@ logger = get_logger(__name__)
 @lru_cache(maxsize=1)
 def get_sheets_manager() -> SheetsManager:
     return SheetsManager()
+
+
+@lru_cache(maxsize=1)
+def get_ltrc_processor() -> LTRCProcessor:
+    return LTRCProcessor()
 
 class SheetsUpdateWithResultsRequest(BaseModel):
     """Request model for sheets update with tournament results"""
@@ -52,6 +58,11 @@ async def update_google_sheets(
         result = sheets_manager.update_sheets(
             event_id=request.event_id,
             results=request.results
+        )
+
+        get_ltrc_processor().record_event_history(
+            event_id=request.event_id,
+            results=request.results,
         )
         
         logger.info(f"Google Sheets updated successfully for event: {request.event_id}")
