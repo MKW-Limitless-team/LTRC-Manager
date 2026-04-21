@@ -5,7 +5,7 @@ This module contains models specific to tournament processing and MMR calculatio
 """
 
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -13,8 +13,10 @@ from pydantic import BaseModel, Field
 class PlayerData(BaseModel):
     """Player data model"""
     name: str = Field(..., description="Player's display name", min_length=1, max_length=50)
-    score: int = Field(..., description="Player's score in the tournament")
+    score: int = Field(0, description="Player's score in the tournament")
     mii_data: str = Field(..., description="Base64-encoded Mii image data")
+    seed: Optional[int] = Field(None, description="Optional seed value for manual formats")
+    round_scores: List[Optional[int]] = Field(default_factory=list, description="Optional per-round scores for manual formats")
 
 
 class TournamentOptions(BaseModel):
@@ -28,7 +30,7 @@ class TournamentRequest(BaseModel):
     """Tournament processing request model"""
     event_id: str = Field(..., description="Unique event identifier")
     mode: str = Field(..., description="Tournament format", 
-                     pattern="^(FFA|FFA KO|2vs2|2v2 GP|3vs3|4vs4|5vs5|6vs6)$")
+                     pattern="^(FFA|FFA KO|2vs2|2v2 GP|3vs3|4vs4|5vs5|6vs6|Limit Breaker)$")
     players: List[PlayerData] = Field(..., description="List of players")
     options: TournamentOptions = Field(default_factory=TournamentOptions, 
                                      description="Tournament options")
@@ -39,7 +41,7 @@ class TournamentRequest(BaseModel):
 class WorkflowProcessRequest(BaseModel):
     """Workflow processing request that reads players from Google Sheets."""
     event_id: str = Field(..., description="Unique event identifier")
-    mode: str = Field(..., description="Tournament format", pattern="^(FFA|FFA KO|2vs2|2v2 GP|3vs3|4vs4|5vs5|6vs6)$")
+    mode: str = Field(..., description="Tournament format", pattern="^(FFA|FFA KO|2vs2|2v2 GP|3vs3|4vs4|5vs5|6vs6|Limit Breaker)$")
     options: TournamentOptions = Field(default_factory=TournamentOptions, description="Tournament options")
     event_date: str = Field(
         ...,
@@ -59,6 +61,10 @@ class TournamentResult(BaseModel):
     boosted: bool = Field(..., description="Whether the player's first-three-events boost applied")
     bonus: int = Field(0, description="Manual MMR adjustment applied by an admin")
     mii_data: str = Field(..., description="Base64-encoded Mii image data")
+    seed: Optional[int] = Field(None, description="Optional seed value for manual formats")
+    round_scores: List[Optional[int]] = Field(default_factory=list, description="Optional per-round scores for manual formats")
+    rounds_played: int = Field(0, description="Number of completed rounds for manual formats")
+    total_score: int = Field(0, description="Total score across rounds for manual formats")
 
 
 class TournamentResponse(BaseModel):

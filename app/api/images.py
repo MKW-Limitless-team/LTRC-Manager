@@ -9,6 +9,7 @@ from app.models.image import SavedImageRequest
 from app.services.ltrc_processor import LTRCProcessor
 from app.services.image_generator import ImageGenerator
 from app.utils.logging import get_logger
+from app.api.ltrc import get_event_json_path
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/images", tags=["Image Generation"])
@@ -34,8 +35,7 @@ def get_ltrc_processor() -> LTRCProcessor:
 
 
 def _load_saved_tournament(event_id: str) -> Dict[str, Any]:
-    season = event_id.split('E')[0]
-    json_path = os.path.join("database", season, f"{event_id}.json")
+    json_path = get_event_json_path(event_id)
     if not os.path.exists(json_path):
         raise HTTPException(status_code=404, detail=f"Results not found for event {event_id}")
 
@@ -140,19 +140,29 @@ def _render_saved_image(
     image_gen = get_image_generator(format_type)
     title_text = title or _build_title(format_type, results_data.get("options"))
     render_fn = image_gen.generate_or_retrieve if persist else image_gen.generate
+    players_for_render = [
+        {
+            "name": player["name"],
+            "score": player["score"],
+            "old_mmr": player.get("old_mmr", -1),
+            "mmr_change": player["mmr_change"],
+            "new_mmr": player["new_mmr"],
+            "is_rated": player.get("is_rated", True),
+            "mii_data": player.get("mii_data", ""),
+            "ranking": player.get("ranking"),
+            "seed": player.get("seed"),
+            "round_scores": player.get("round_scores", []),
+            "rounds_played": player.get("rounds_played", 0),
+            "total_score": player.get("total_score", player.get("score", 0)),
+        }
+        for player in players
+    ]
+
+    if format_type != "Limit Breaker":
+        players_for_render = _annotate_overall_ascendant_flags(players_for_render)
+
     image = render_fn(
-        results=_annotate_overall_ascendant_flags([
-            {
-                "name": player["name"],
-                "score": player["score"],
-                "old_mmr": player.get("old_mmr", -1),
-                "mmr_change": player["mmr_change"],
-                "new_mmr": player["new_mmr"],
-                "is_rated": player.get("is_rated", True),
-                "mii_data": player.get("mii_data", ""),
-            }
-            for player in players
-        ]),
+        results=players_for_render,
         event_id=event_id,
         event_date=event_date,
         title_text=title_text,

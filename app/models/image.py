@@ -16,6 +16,8 @@ class PlayerResult(BaseModel):
     new_mmr: int = Field(..., description="New MMR after this tournament")
     is_rated: bool = Field(True, description="Whether the player is rated after this event")
     mii_data: Optional[str] = Field(None, description="Base64-encoded Mii data")
+    seed: Optional[int] = Field(None, description="Optional seed for manual formats")
+    round_scores: List[Optional[int]] = Field(default_factory=list, description="Optional round scores for manual formats")
 
 class ImageGenerationRequest(BaseModel):
     """Request model for image generation"""

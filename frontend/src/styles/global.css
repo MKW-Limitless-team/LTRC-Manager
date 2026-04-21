@@ -420,6 +420,45 @@ select.team-6 {
   position: relative;
 }
 
+.mii-field {
+  display: grid;
+  justify-items: center;
+  gap: 0;
+}
+
+.mii-button {
+  border: 1px solid var(--border);
+  background: rgba(17, 21, 37, 0.82);
+  color: var(--text);
+}
+
+.mii-button {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.mii-button img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.mii-button.has-preview {
+  padding: 1px;
+}
+
+.mii-button span {
+  font-size: 0.66rem;
+  line-height: 1.1;
+  text-align: center;
+}
+
 .autocomplete-menu {
   position: absolute;
   top: calc(100% + 6px);
@@ -469,6 +508,7 @@ select.team-6 {
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  text-align: center;
 }
 
 .primary-button,

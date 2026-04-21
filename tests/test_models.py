@@ -22,7 +22,7 @@ def test_base_models_validate():
         locked_by=None,
         last_processed=datetime.now(),
         active_instances=1,
-        supported_formats=["FFA", "FFA KO", "2vs2", "2v2 GP"],
+        supported_formats=["FFA", "FFA KO", "2vs2", "2v2 GP", "Limit Breaker"],
     )
     sheets = SheetsStatus(
         connected=True,
@@ -34,7 +34,7 @@ def test_base_models_validate():
     )
 
     assert error.code == "VALIDATION"
-    assert processing.supported_formats == ["FFA", "FFA KO", "2vs2", "2v2 GP"]
+    assert processing.supported_formats == ["FFA", "FFA KO", "2vs2", "2v2 GP", "Limit Breaker"]
     assert sheets.connected is True
 
 
@@ -50,6 +50,28 @@ def test_tournament_request_and_options_aliases_work():
     assert request.options.three_two_track is True
     assert request.options.two_hundred_cc is False
     assert request.options.ott is True
+
+
+def test_limit_breaker_request_supports_seed_and_round_scores():
+    request = TournamentRequest(
+        event_id="LB_1",
+        mode="Limit Breaker",
+        players=[
+            PlayerData(
+                name="Player1",
+                score=210,
+                mii_data="",
+                seed=4,
+                round_scores=[70, 80, None, 60],
+            )
+        ],
+        options={"32track": False, "200cc": False, "ott": False},
+        event_date="31-01-2025",
+    )
+
+    assert request.mode == "Limit Breaker"
+    assert request.players[0].seed == 4
+    assert request.players[0].round_scores == [70, 80, None, 60]
 
 
 def test_workflow_request_validates():

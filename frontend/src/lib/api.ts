@@ -1,9 +1,11 @@
 import type {
+  NextEventIdResponse,
   SavedImageRequest,
   SessionState,
   SheetsUpdateRequest,
   SheetsUpdateResponse,
   TournamentResponse,
+  TournamentMode,
   WorkflowProcessRequest
 } from "./types";
 
@@ -88,8 +90,9 @@ export function getSessionState(): Promise<SessionState> {
   return apiFetch<SessionState>("/auth/me");
 }
 
-export function getNextEventId(): Promise<{ event_id: string; season: number }> {
-  return apiFetch<{ event_id: string; season: number }>("/ltrc/next-event-id");
+export function getNextEventId(mode: TournamentMode): Promise<NextEventIdResponse> {
+  const search = new URLSearchParams({ mode });
+  return apiFetch<NextEventIdResponse>(`/ltrc/next-event-id?${search.toString()}`);
 }
 
 export function getPlayerNames(): Promise<{ players: string[] }> {

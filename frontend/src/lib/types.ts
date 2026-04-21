@@ -1,4 +1,13 @@
-export type TournamentMode = "FFA" | "FFA KO" | "2vs2" | "2v2 GP" | "3vs3" | "4vs4" | "5vs5" | "6vs6";
+export type TournamentMode =
+  | "FFA"
+  | "FFA KO"
+  | "2vs2"
+  | "2v2 GP"
+  | "3vs3"
+  | "4vs4"
+  | "5vs5"
+  | "6vs6"
+  | "Limit Breaker";
 
 export interface TournamentOptions {
   "32track": boolean;
@@ -18,6 +27,8 @@ export interface PlayerEntry {
   name: string;
   score: number | "";
   mii_data: string;
+  seed?: number | "" | null;
+  round_scores?: Array<number | "" | null>;
 }
 
 export interface TournamentResult {
@@ -31,6 +42,10 @@ export interface TournamentResult {
   boosted: boolean;
   bonus: number;
   mii_data: string;
+  seed?: number | null;
+  round_scores?: Array<number | null>;
+  rounds_played?: number;
+  total_score?: number;
 }
 
 export interface TournamentResponse {
@@ -84,4 +99,9 @@ export interface SheetsUpdateResponse {
   updated_cells: number;
   timestamp: string;
   message: string;
+}
+
+export interface NextEventIdResponse {
+  event_id: string;
+  season?: number | null;
 }

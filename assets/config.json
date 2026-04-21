@@ -166,6 +166,84 @@
                 "column_spacing": 400
             }
         },
+        "Limit Breaker": {
+            "font_file": "Ethnocentric-Regular.otf",
+            "background_image": "background_red.png",
+            "team_size": 1,
+            "podium_count": 3,
+            "header": {
+                "title_y": 15,
+                "title_size": 75,
+                "title_color": "#C560FF",
+                "subtitle_y": 100,
+                "subtitle_size": 30,
+                "subtitle_color": "#AAAAAA",
+                "shadow_offset": [4, 4],
+                "legend": {
+                    "text": "",
+                    "x": 1710,
+                    "y": 100,
+                    "size": 30,
+                    "color": "#A0A0A0",
+                    "align": "right"
+                }
+            },
+            "podium_style": {
+                "start_x": 400,
+                "start_y": 200,
+                "medal_width": 20,
+                "medal_height": 60,
+                "position_x": 40,
+                "position_offset_x": 10,
+                "position_offset_y": -20,
+                "position_size": 65,
+                "name_size": 40,
+                "name_color": "#FFFFFF",
+                "stats_size": 30,
+                "rank_change_icon_size": [15, 15],
+                "icon_y_offset": 15,
+                "row_spacing": 40,
+                "winner": {
+                    "y_offset": -30,
+                    "font_size": 65,
+                    "spacing": 80
+                },
+                "mii": {
+                    "size": 200,
+                    "x_offset": 240,
+                    "y_offset": -70,
+                    "horizontal_spacing": 20,
+                    "bottom_spacing": -30
+                },
+                "vertical_spacing": 20,
+                "section_spacing": 50,
+                "horizontal_spacing": 15,
+                "center_x": 340,
+                "position_sizes": [70, 60, 55],
+                "name_sizes": [70, 65, 60],
+                "stats_sizes": [45, 40, 35]
+            },
+            "regular_style": {
+                "start_x": 1100,
+                "start_y": 200,
+                "name_size": 60,
+                "name_color": "#FFFFFF",
+                "stats_size": 35,
+                "row_spacing": 25,
+                "horizontal_spacing": 15,
+                "vertical_spacing": 20,
+                "column_y_offset": 80,
+                "column_spacing": 400,
+                "col2_start": [1080, 200],
+                "col3_start": [1580, 160],
+                "col2_name_size": 55,
+                "col2_stats_size": 32,
+                "col3_name_size": 30,
+                "col3_stats_size": 22,
+                "col2_row_spacing": 22,
+                "col3_row_spacing": 15
+            }
+        },
         
         "2vs2": {
             "team_size": 2,

@@ -41,11 +41,14 @@ class ImageGenerator:
         
         # Store the format type
         self.format_type = format_type
+        self.format_config = self.config['formats'][self.format_type]
+        self.is_limit_breaker = self.format_type == "Limit Breaker"
         
         # Store all commonly used configuration sections as class attributes
         self.width = self.config['width']
         self.height = self.config['height']
-        self.font_file = self.config['font_file']
+        self.font_file = self.format_config.get('font_file', self.config['font_file'])
+        self.background_image = self.format_config.get('background_image', self.config.get('background_image'))
         self.colors = self.config['colors']
         
         # Validate font file exists - check in assets directory
@@ -56,7 +59,6 @@ class ImageGenerator:
         self.font_file = font_path
         
         # Format specific configurations
-        self.format_config = self.config['formats'][self.format_type]
         self.header_config = self.format_config['header']
         self.legend_config = self.header_config.get('legend')
         self.podium_style = self.format_config['podium_style']
@@ -165,7 +167,7 @@ class ImageGenerator:
         # Check if background image is specified
         try:
             # Try to load the background image
-            background_path = os.path.join(os.path.dirname(__file__), '..', '..', 'assets', 'background.png')
+            background_path = os.path.join(os.path.dirname(__file__), '..', '..', 'assets', self.background_image)
             img = Image.open(background_path)
             # Resize to match configured dimensions if needed
             if img.size != (self.width, self.height):
@@ -176,6 +178,39 @@ class ImageGenerator:
                             ImageColor.getrgb(self.config['background_color']))
         
         return img
+
+    def _draw_limit_breaker_score_line(self, img, player_data, center_x, stats_y, stats_size):
+        """Draw the manual Limit Breaker score line without MMR fields or rank icons."""
+        draw = ImageDraw.Draw(img)
+        stats_font = ImageFont.truetype(self.font_file, stats_size)
+        text_color = self.colors['positions']['default']
+        muted_color = "#AAAAAA"
+
+        ranking = player_data.get("ranking")
+        seed = player_data.get("seed")
+        round_scores = [score for score in player_data.get("round_scores", []) if score is not None]
+        is_podium = isinstance(ranking, int) and ranking <= self.podium_count
+
+        text_parts: list[tuple[str, str]] = []
+        if not is_podium and ranking is not None:
+            text_parts.append((f"#{ranking} | ", text_color))
+
+        if round_scores:
+            for index, round_score in enumerate(round_scores):
+                color = muted_color if index < len(round_scores) - 1 else text_color
+                suffix = " " if index < len(round_scores) - 1 else ""
+                text_parts.append((f"{round_score}{suffix}", color))
+        else:
+            text_parts.append(("-", muted_color))
+
+        if seed is not None:
+            text_parts.append((f" | {seed}", text_color))
+
+        total_width = sum(draw.textlength(text, font=stats_font) for text, _ in text_parts)
+        draw_x = center_x - total_width // 2
+        for text, color in text_parts:
+            draw.text((draw_x, stats_y), text, fill=color, font=stats_font)
+            draw_x += draw.textlength(text, font=stats_font)
 
     def _render_header(self, img, event_id=None, event_date=None, title_text=None, subtitle_text=None):
         """
@@ -433,6 +468,10 @@ class ImageGenerator:
         Returns:
             None
         """
+        if self.is_limit_breaker:
+            self._draw_limit_breaker_score_line(img, player_data, center_x, stats_y, stats_size)
+            return
+
         draw = ImageDraw.Draw(img)
         
         # Extract player stats
@@ -748,6 +787,48 @@ class ImageGenerator:
             img: The PIL image to draw on
             results: List of player results
         """
+        if self.is_limit_breaker:
+            regular_style = self.format_config['regular_style']
+            regular_players = results[self.podium_count:]
+            col2_start_x, col2_start_y = regular_style.get('col2_start', [1080, 200])
+            col3_start_x, col3_start_y = regular_style.get('col3_start', [1580, 160])
+            col2_row_spacing = regular_style.get('col2_row_spacing', regular_style['row_spacing'])
+            col3_row_spacing = regular_style.get('col3_row_spacing', regular_style['row_spacing'])
+            horizontal_spacing = regular_style.get('horizontal_spacing', 15)
+            name_color = regular_style['name_color']
+
+            current_y = col2_start_y
+            for index, player in enumerate(regular_players[:5]):
+                current_y = self._draw_player_info(
+                    img,
+                    player,
+                    current_y,
+                    0,
+                    regular_style.get('col2_name_size', regular_style['name_size']),
+                    regular_style.get('col2_stats_size', regular_style['stats_size']),
+                    col2_start_x,
+                    name_color,
+                    horizontal_spacing,
+                )
+                current_y += col2_row_spacing
+
+            current_y = col3_start_y
+            for player in regular_players[5:]:
+                current_y = self._draw_player_info(
+                    img,
+                    player,
+                    current_y,
+                    0,
+                    regular_style.get('col3_name_size', regular_style['name_size']),
+                    regular_style.get('col3_stats_size', regular_style['stats_size']),
+                    col3_start_x,
+                    name_color,
+                    horizontal_spacing,
+                )
+                current_y += col3_row_spacing
+
+            return img
+
         # Get regular style configuration
         regular_style = self.format_config['regular_style']
         
@@ -927,10 +1008,11 @@ class ImageGenerator:
             str: File path for the image
         """
         # Extract season from event_id (format: LTRC_SxEy)
-        season = event_id.split('E')[0]
-        
-        # Create season folder
-        season_dir = os.path.join(self.results_images_dir, season)
+        if event_id.startswith("LB_"):
+            season_dir = os.path.join(self.results_images_dir, "LB")
+        else:
+            season = event_id.split('E')[0]
+            season_dir = os.path.join(self.results_images_dir, season)
         os.makedirs(season_dir, exist_ok=True)
         
         # Create filename with only event_id (format not needed)
@@ -1028,7 +1110,8 @@ class ImageGenerator:
             event_date: Optional event date for subtitle format "Event #y DD-MM-YYYY"
         """
         
-        results = self._mark_ascendant_players(results)
+        if not self.is_limit_breaker:
+            results = self._mark_ascendant_players(results)
 
         # Create a transparent canvas for drawing content
         content_img = Image.new('RGBA', (self.width, self.height), (0, 0, 0, 0))
