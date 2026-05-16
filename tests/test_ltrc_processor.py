@@ -22,8 +22,19 @@ def build_processor(tmp_path):
 
 
 def stub_sheet_dependencies(processor, mmr_by_name):
+    processor.refresh_playerdata_cache = lambda: None
     processor._ensure_players_exist = lambda players: None
     processor._get_player_mmr_from_sheets = lambda name: mmr_by_name.get(name)
+
+
+class FakePlayerdataSheet:
+    def __init__(self, rows):
+        self.rows = rows
+        self.get_all_values_calls = 0
+
+    def get_all_values(self):
+        self.get_all_values_calls += 1
+        return self.rows
 
 
 def test_room_minimum_points_follow_room_size(tmp_path):
@@ -85,6 +96,35 @@ def test_event_history_tracks_each_event_once(tmp_path):
     assert saved_history["playerone"]["events_played"] == 1
     assert saved_history["playerone"]["event_ids"] == ["LTRC_S1E1"]
     assert saved_history["playertwo"]["events_played"] == 1
+
+
+def test_processing_refreshes_playerdata_cache_before_reading_mmr(tmp_path):
+    processor = build_processor(tmp_path)
+    processor.playerdata_cache = [["PlayerOne", "", "", "1200"], ["PlayerTwo", "", "", "1300"]]
+    processor.Playerdata = FakePlayerdataSheet(
+        [["PlayerOne", "", "", "2600"], ["PlayerTwo", "", "", "2700"]]
+    )
+
+    result = processor.process_tournament(
+        event_id="LTRC_S1E9",
+        mode="FFA",
+        players=[
+            {"name": "PlayerOne", "score": 120, "mii_data": ""},
+            {"name": "PlayerTwo", "score": 100, "mii_data": ""},
+        ],
+        options={"32track": False, "200cc": False},
+        event_date="18-04-2026",
+    )
+
+    assert processor.Playerdata.get_all_values_calls == 1
+    assert [player["old_mmr"] for player in result["results"]] == [2600, 2700]
+
+
+def test_player_mmr_lookup_trims_names_and_ignores_case(tmp_path):
+    processor = build_processor(tmp_path)
+    processor.playerdata_cache = [["  SheetName  ", "", "", "2400"]]
+
+    assert processor._get_player_mmr_from_sheets("sheetname") == 2400
 
 
 def test_non_placement_modes_use_2000_seed_and_keep_players_unrated(tmp_path):

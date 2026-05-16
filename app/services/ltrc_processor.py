@@ -101,8 +101,11 @@ class LTRCProcessor:
             logger.error(f"Error initializing Google Sheets connection: {str(e)}")
             raise
     
-    def _read_sheets_data(self):
-        """Read all necessary data from Google Sheets once and cache it."""
+    def _read_sheets_data(self, force_refresh: bool = False):
+        """Read player data from Google Sheets and cache it."""
+        if self.playerdata_cache is not None and not force_refresh:
+            return
+
         try:
             logger.info("Reading player data from Google Sheets")
             
@@ -115,10 +118,13 @@ class LTRCProcessor:
             logger.error(f"Error reading sheets data: {str(e)}")
             raise
 
+    def refresh_playerdata_cache(self) -> None:
+        """Force a fresh Playerdata read before calculations that must use live MMR."""
+        self._read_sheets_data(force_refresh=True)
+
     def get_player_names(self) -> List[str]:
         """Return the known player names from the LTRC sheet."""
-        if self.playerdata_cache is None:
-            self._read_sheets_data()
+        self.refresh_playerdata_cache()
 
         names = []
         seen = set()
@@ -220,7 +226,11 @@ class LTRCProcessor:
         
         # Find player in Playerdata sheet (column A = index 0)
         for row in self.playerdata_cache:
-            if row and len(row) > 0 and row[0].lower() == player_name.lower():
+            if (
+                row
+                and len(row) > 0
+                and row[0].strip().lower() == player_name.strip().lower()
+            ):
                 # MMR is in column D (index 3)
                 if len(row) > 3 and row[3] and row[3] != "???":
                     return int(row[3])
@@ -365,6 +375,7 @@ class LTRCProcessor:
                         if score > 180:
                             raise ValueError(f"Score {score} exceeds maximum for normal events (180)")
             
+            self.refresh_playerdata_cache()
             event_history = self._load_event_history()
             self._ensure_players_exist(players)
 
